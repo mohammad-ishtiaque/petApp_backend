@@ -1,70 +1,73 @@
 const tokenService = require('../../utils/tokenService');
 const { ApiError } = require('../../errors/errorHandler');
 const asyncHandler = require('../../utils/asyncHandler');
-const User = require('../module/User/user.model');
-const Owner = require('../module/Owner/owner.model');
+const User = require('.././module/User/User');
+// const Owner = require('../module/Owner/owner.model');
 
 /**
- * Middleware to authenticate users and owners
- * @param {string[]} roles - Array of allowed roles (optional)
- * @returns {Function} - Express middleware
+ * Middleware to authenticate users only
  */
-const authenticate = (roles = []) => {
-  return asyncHandler(async (req, res, next) => {
-    // Get token from Authorization header
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new ApiError('Authorization token is required', 401);
-    }
+const authenticateUser = asyncHandler(async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    throw new ApiError('Authorization token is required', 401);
+  }
+  const token = authHeader.split(' ')[1];
+  if (!token) {
+    throw new ApiError('Invalid authorization format', 401);
+  }
+  const decoded = tokenService.verifyAccessToken(token);
+  if (!decoded || decoded.role !== 'user') {
+    throw new ApiError('Invalid or unauthorized token', 401);
+  }
+  const user = await User.findById(decoded.id).select('-password');
+  if (!user) {
+    throw new ApiError('User not found', 401);
+  }
+  if (user.isVerified === false) {
+    throw new ApiError('Email not verified. Please verify your email to continue.', 403);
+  }
+  req.user = {
+    id: user._id,
+    email: user.email,
+    role: decoded.role,
+    ...(user.name && { name: user.name })
+  };
+  next();
+});
 
-    const token = authHeader.split(' ')[1];
-    if (!token) {
-      throw new ApiError('Invalid authorization format', 401);
-    }
-
-    // Verify token
-    const decoded = tokenService.verifyAccessToken(token);
-    if (!decoded) {
-      throw new ApiError('Invalid token', 401);
-    }
-
-    // Find user or owner based on role
-    let user;
-    if (decoded.role === 'user') {
-      user = await User.findById(decoded.id).select('-password');
-    } else if (decoded.role === 'owner') {
-      user = await Owner.findById(decoded.id).select('-password');
-    } else if (decoded.role === 'admin') {
-      // Admin handling would go here
-      user = { _id: decoded.id, role: 'admin' };
-    }
-
-    if (!user) {
-      throw new ApiError('User not found', 401);
-    }
-
-    // Check if user is verified
-    if (user.isVerified === false) {
-      throw new ApiError('Email not verified. Please verify your email to continue.', 403);
-    }
-
-    // Check if user has required role
-    if (roles.length > 0 && !roles.includes(decoded.role)) {
-      throw new ApiError('You do not have permission to access this resource', 403);
-    }
-
-    // Attach user to request object
-    req.user = {
-      id: user._id,
-      email: user.email,
-      role: decoded.role,
-      ...(user.name && { name: user.name }),
-      ...(user.businessName && { businessName: user.businessName })
-    };
-
-    next();
-  });
-};
+/**
+ * Middleware to authenticate owners only
+ */
+// const authenticateOwner = asyncHandler(async (req, res, next) => {
+//   const authHeader = req.headers.authorization;
+//   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+//     throw new ApiError('Authorization token is required', 401);
+//   }
+//   const token = authHeader.split(' ')[1];
+//   if (!token) {
+//     throw new ApiError('Invalid authorization format', 401);
+//   }
+//   const decoded = tokenService.verifyAccessToken(token);
+//   if (!decoded || decoded.role !== 'owner') {
+//     throw new ApiError('Invalid or unauthorized token', 401);
+//   }
+//   const owner = await Owner.findById(decoded.id).select('-password');
+//   if (!owner) {
+//     throw new ApiError('Owner not found', 401);
+//   }
+//   if (owner.isVerified === false) {
+//     throw new ApiError('Email not verified. Please verify your email to continue.', 403);
+//   }
+//   req.owner = {
+//     id: owner._id,
+//     email: owner.email,
+//     role: decoded.role,
+//     ...(owner.name && { name: owner.name }),
+//     ...(owner.businessName && { businessName: owner.businessName })
+//   };
+//   next();
+// });
 
 /**
  * Middleware to check if user is verified
@@ -95,6 +98,7 @@ const isVerified = asyncHandler(async (req, res, next) => {
 });
 
 module.exports = {
-  authenticate,
+  authenticateUser,
+  // authenticateOwner,
   isVerified
 };

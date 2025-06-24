@@ -25,6 +25,8 @@ app.use(cookieParser());
 connectDB();
 // Routes
 app.use('/api/auth', require('./app/module/Auth/auth.routes'));
+app.use('/api/pet', require('./app/module/Pet/pet.router'));
+
 // app.use('/api/auth', require('./app/module/Auth/auth.routes'));
 // app.use('/api/users', require('./app/module/User/user.routes'));
 // app.use('/api/owners', require('./app/module/Owner/owner.routes'));

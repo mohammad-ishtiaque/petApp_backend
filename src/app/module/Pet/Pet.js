@@ -1,3 +1,4 @@
+
 const mongoose = require('mongoose');
 
 const petSchema = new mongoose.Schema({
@@ -6,10 +7,9 @@ const petSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  type: {
+  animalType: {
     type: String,
-    required: true,
-    trim: true
+    required: true
   },
   breed: {
     type: String,
@@ -24,21 +24,18 @@ const petSchema = new mongoose.Schema({
   gender: {
     type: String,
     required: true,
-    enum: ['male', 'female', 'other']
+    enum: ['MALE', 'FEMALE']
   },
   weight: {
     type: Number,
-    required: true,
     min: 0
   },
   height: {
     type: Number,
-    required: true,
     min: 0
   },
   color: {
     type: String,
-    required: true
   },
   description: {
     type: String,
@@ -52,11 +49,12 @@ const petSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
-  owner: {
+  userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
+  petPhoto: [{type:String}],
   createdAt: {
     type: Date,
     default: Date.now

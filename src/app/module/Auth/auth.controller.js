@@ -77,8 +77,8 @@ exports.login = async (req, res, next) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) throw new ApiError('Invalid email or password', 401);
     // Generate tokens
-    const accessToken = tokenService.generateAccessToken({ id: user._id, role: 'user' });
-    const refreshToken = tokenService.generateRefreshToken({ id: user._id, role: 'user' });
+    const accessToken = tokenService.generateAccessToken({ id: user._id, role: 'USER' });
+    const refreshToken = tokenService.generateRefreshToken({ id: user._id, role: 'USER' });
     return res.status(200).json({
       success: true,
       message: 'Login successful',
@@ -106,9 +106,17 @@ exports.verifyEmail = async (req, res, next) => {
     await user.save();
     await TempUser.deleteOne({ email });
     await emailService.sendWelcomeEmail(email, name, 'user');
+
+    // Auto-login: generate tokens
+    const accessToken = tokenService.generateAccessToken({ id: user._id, role: 'user' });
+    const refreshToken = tokenService.generateRefreshToken({ id: user._id, role: 'user' });
+
     return res.status(200).json({
       success: true,
-      message: 'Email verified successfully. You can now log in.'
+      message: 'Email verified successfully. You are now logged in.',
+      accessToken,
+      refreshToken,
+      user: { id: user._id, name: user.name, email: user.email }
     });
   } catch (err) {
     return next(err);
