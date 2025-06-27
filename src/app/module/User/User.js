@@ -22,9 +22,25 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  address: {
+    type: String
+  },
+  role: {
+    type: String,
+    enum: ['USER', 'ADMIN', 'OWNER'],
+    default: 'USER'
+  },
+  // permissions: {
+  //   type: [String],
+  //   enum: ['USER', 'ADMIN', 'OWNER'],
+  //   default: ['USER']
+  // },
   isVerified: {
     type: Boolean,
     default: false
+  },
+  profilePic: {
+    type: String
   },
   verificationCode: {
     code: String,

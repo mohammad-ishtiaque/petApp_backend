@@ -70,9 +70,10 @@ exports.login = async (req, res, next) => {
   try {
     const user = await User.findOne({ email });
     // console.log(user);
-
-    if (!user) throw new ApiError('Invalid email or password', 401);
+    
     if (!user.isVerified) throw new ApiError('Email not verified', 403);
+    if (!user) throw new ApiError('Invalid email or password', 401);
+    
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) throw new ApiError('Invalid email or password', 401);
