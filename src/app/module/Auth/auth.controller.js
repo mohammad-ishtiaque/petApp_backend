@@ -42,7 +42,8 @@ exports.register = async (req, res, next) => {
             verificationCode: {
                 code: verificationCode,
                 expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
-            }
+            },
+            role: 'USER'
         });
 
         await tempUser.save();
@@ -70,12 +71,16 @@ exports.login = async (req, res, next) => {
   try {
     const user = await User.findOne({ email });
     // console.log(user);
+
+    if (!user) throw new ApiError('User not found', 404);
     
-    if (!user.isVerified) throw new ApiError('Email not verified', 403);
-    if (!user) throw new ApiError('Invalid email or password', 401);
+    if (!user?.isVerified) throw new ApiError('Email not verified', 403);
     
 
     const isMatch = await bcrypt.compare(password, user.password);
+    // console.log(password, user.password);
+    // console.log(isMatch);
+    
     if (!isMatch) throw new ApiError('Invalid email or password', 401);
     // Generate tokens
     const accessToken = tokenService.generateAccessToken({ id: user._id, role: 'USER' });
@@ -103,14 +108,14 @@ exports.verifyEmail = async (req, res, next) => {
     }
     // Move user from TempUser to User
     const { name, phone, password } = tempUser;
-    const user = new User({ name, email, phone, password, isVerified: true });
+    const user = new User({ name, email, phone, password, isVerified: true, role: 'USER' });
     await user.save();
     await TempUser.deleteOne({ email });
     await emailService.sendWelcomeEmail(email, name, 'user');
 
     // Auto-login: generate tokens
-    const accessToken = tokenService.generateAccessToken({ id: user._id, role: 'user' });
-    const refreshToken = tokenService.generateRefreshToken({ id: user._id, role: 'user' });
+    const accessToken = tokenService.generateAccessToken({ id: user._id, role: 'USER' });
+    const refreshToken = tokenService.generateRefreshToken({ id: user._id, role: 'USER' });
 
     return res.status(200).json({
       success: true,

@@ -33,6 +33,11 @@ const tempUserSchema = new mongoose.Schema({
     code: String,
     expiresAt: Date
   },
+  role: {
+    type: String,
+    enum: ['USER', 'ADMIN', 'OWNER'],
+    default: 'USER'
+  },
   pets: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Pet'

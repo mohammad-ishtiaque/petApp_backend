@@ -16,8 +16,10 @@ const authenticateUser = asyncHandler(async (req, res, next) => {
   if (!token) {
     throw new ApiError('Invalid authorization format', 401);
   }
+  // console.log(token);
   const decoded = tokenService.verifyAccessToken(token);
-  if (!decoded || decoded.role !== 'user') {
+  // console.log(decoded);
+  if (!decoded || decoded.role !== 'USER') {
     throw new ApiError('Invalid or unauthorized token', 401);
   }
   const user = await User.findById(decoded.id).select('-password');

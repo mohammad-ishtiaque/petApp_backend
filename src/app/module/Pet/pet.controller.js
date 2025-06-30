@@ -80,6 +80,3 @@ exports.deletePet = async (req, res) => {
     }
 }
 
-
-
-
