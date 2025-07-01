@@ -28,6 +28,10 @@ const businessSchema = new mongoose.Schema({
     shopPic: {
       type: [String],
     },
+    // servicesId: {
+    //     type: mongoose.Schema.Types.ObjectId,
+    //     ref: 'Service',
+    // },
     // services: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Service' }],
     // reviews: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Review' }],
     createdAt: { type: Date, default: Date.now }
