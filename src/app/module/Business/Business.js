@@ -4,7 +4,11 @@ const mongoose = require('mongoose');
 
 const businessSchema = new mongoose.Schema({
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Owner' },
-    businessName: String,
+    businessName: {
+        type: String,
+        required: true,
+        trim: true
+    },
     businessType: {
         type: String,
         enum:   ['VET', 'SHOP', 'HOTEL', 'TRAINING', 'FRIENDLY', 'GROOMING']

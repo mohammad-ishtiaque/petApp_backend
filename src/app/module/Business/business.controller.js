@@ -1,6 +1,11 @@
 const Owner = require('../Owner/Owner');
 const Business = require('./Business');
 const {ApiError} = require('../../../errors/errorHandler');
+const {deleteFile} = require('../../../utils/unLinkFiles');
+const path = require('path');
+const upload = require('../../../utils/upload');
+
+
 
 exports.createBusiness = async (req, res, next) => {
     const ownerId = req.owner.id;
@@ -33,3 +38,101 @@ exports.createBusiness = async (req, res, next) => {
     }
 };
 
+
+exports.getBusiness = async (req, res, next) => {
+    const ownerId = req.owner.id;
+    try {
+        const business = await Business.find({ ownerId });
+        if (!business) throw new ApiError('Business not found', 404);
+        return res.status(200).json({
+            success: true,
+            message: 'Business fetched successfully',
+            business
+        });
+    } catch (err) {
+        throw new ApiError(err.message, 500);    
+    }   
+};
+
+
+exports.getBusinessById = async (req, res, next) => {
+    const businessId = req.params.id;
+    try {
+        const business = await Business.findById(businessId);
+        if (!business) throw new ApiError('Business not found', 404);
+        return res.status(200).json({
+            success: true,
+            message: 'Business fetched successfully',
+            business
+        });
+    } catch (err) {
+        throw new ApiError(err.message, 500);    
+    }   
+};
+
+
+exports.updateBusiness = async (req, res, next) => {
+    const businessId = req.params.id;
+    const { businessName, businessType, website, address, moreInfo } = req.body;
+    const { shopLogo, shopPic } = req.files;
+    try {
+        const business = await Business.findById(businessId);
+        if (!business) throw new ApiError('Business not found', 404);
+        if (shopLogo.length > 0) {
+            if (business.shopLogo) {
+                await deleteFile(path.join(__dirname, '..', '..', '..', 'uploads', business.shopLogo));
+            }
+            business.shopLogo = shopLogo[0].path;
+        }
+        if (shopPic.length > 0) {
+            if (business.shopPic) {
+                await Promise.all(business.shopPic.map(file => deleteFile(path.join(__dirname, '..', '..', '..', 'uploads', file))));
+            }
+            business.shopPic = shopPic.map(file => file.path);
+        }
+        await business.save();
+        business.businessName = businessName;
+        business.businessType = businessType;
+        business.website = website;
+        business.address = address;
+        business.moreInfo = moreInfo;
+        await business.save();
+        return res.status(200).json({
+            success: true,
+            message: 'Business updated successfully',
+            business
+        });
+    } catch (err) {
+        throw new ApiError(err.message, 500);    
+    }   
+};
+
+exports.deleteBusiness = async (req, res, next) => {
+    const businessId = req.params.id;
+    try {
+        const business = await Business.findByIdAndDelete(businessId);
+        if (!business) throw new ApiError('Business not found', 404);
+        return res.status(200).json({
+            success: true,
+            message: 'Business deleted successfully',
+            business
+        });
+    } catch (err) {
+        throw new ApiError(err.message, 500);    
+    }   
+};
+
+//for admin only
+exports.getAllBusiness = async (req, res, next) => {
+    try {
+        const business = await Business.find();
+        if (!business) throw new ApiError('Business not found', 404);
+        return res.status(200).json({
+            success: true,
+            message: 'Business fetched successfully',
+            business
+        });
+    } catch (err) {
+        throw new ApiError(err.message, 500);    
+    }   
+};
