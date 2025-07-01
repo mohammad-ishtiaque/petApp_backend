@@ -27,6 +27,7 @@ connectDB();
 app.use('/api/auth', require('./app/module/Auth/auth.routes'));
 app.use('/api/pet', require('./app/module/Pet/pet.router'));
 app.use('/api/user', require('./app/module/User/userprofile.router'));
+app.use('/api/business', require('./app/module/Business/business.router'));
 
 
 // app.use('/api/auth', require('./app/module/Auth/auth.routes'));
