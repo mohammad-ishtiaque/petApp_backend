@@ -7,6 +7,7 @@ const { ApiError } = require('../../../errors/errorHandler');
 exports.createService = async (req, res, next) => {
     try {
         const ownerId = req.owner.id;
+        // console.log(ownerId);
         const business = await Business.findOne({ ownerId });
         const businessId = business._id;
 

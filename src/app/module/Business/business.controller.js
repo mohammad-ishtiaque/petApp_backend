@@ -136,3 +136,45 @@ exports.getAllBusiness = async (req, res, next) => {
         throw new ApiError(err.message, 500);    
     }   
 };
+
+exports.addAdvertisement = async (req, res, next) => {
+    const ownerId = req.owner.id;
+    const business = await Business.findOne({ ownerId });
+    const businessId = business._id;
+    
+    try {
+        const  advertisementImg  = req.files;
+        const business = await Business.findById(businessId);
+        // console.log(business);
+        if (!business) throw new ApiError('Business not found', 404);
+        business.advertisementImg = advertisementImg ? advertisementImg.map(file => file.path) : []
+        await business.save();
+        return res.status(200).json({
+            success: true,
+            message: 'advertisement added successfully',
+            business
+        });
+    } catch (err) {
+        throw new ApiError(err.message, 500);    
+    }   
+};
+
+
+exports.deleteAdvertisement = async (req, res, next) => {
+    const ownerId = req.owner.id;
+    const business = await Business.findOne({ ownerId });
+    const businessId = business._id;
+        try {
+            const business = await Business.findById(businessId);
+            if (!business) throw new ApiError('Business not found', 404);   
+            business.advertisementImg = [];
+            await business.save();
+            return res.status(200).json({
+                success: true,
+                message: 'advertisement deleted successfully',
+                business
+            });
+        } catch (err) {
+            throw new ApiError(err.message, 500);    
+        }   
+    };
