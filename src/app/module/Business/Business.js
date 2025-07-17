@@ -28,7 +28,10 @@ const businessSchema = new mongoose.Schema({
     shopPic: {
       type: [String],
     },
-    advertisementImg: [{ type: String }],
+    advertisement: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Advertisement'
+    },
     // servicesId: {
     //     type: mongoose.Schema.Types.ObjectId,
     //     ref: 'Service',

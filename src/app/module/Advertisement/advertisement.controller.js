@@ -13,13 +13,20 @@ exports.createAdvertisement = async (req, res, next) => {
         const business = await Business.findOne({ ownerId });
         const businessId = business._id;
         const advertisementImg = req.files;
+        const businessType = business.businessType;
+        // console.log(businessType);
 
         const advertisement = new Advertisement({
             advertisementImg: advertisementImg ? advertisementImg.map(file => file.path) : [],
             businessId,
-            ownerId
+            ownerId,
+            businessType
         });
+
+        
         await advertisement.save();
+        // business.advertisement.push(...advertisement.advertisementImg);
+        // console.log(business);
         return res.status(201).json({
             success: true,
             message: 'Advertisement created successfully',
@@ -65,4 +72,28 @@ exports.deleteAdvertisement = async (req, res, next) => {
         throw new ApiError(err.message, 500);
     }
 };
+
+exports.getAdvertisementByBusinessId = async (req, res, next) => {
+    const businessId = req.params.id;
+    const ownerId = req.owner.id;
+    const business = await Business.findOne({ _id: businessId, ownerId });
+    // const businessType = business.businessType;
+    try {
+        const advertisement = await Advertisement.find({ businessId, ownerId });
+        if (advertisement.length === 0) throw new ApiError('Advertisement not found', 404);
+        res.status(200).json({
+            success: true,
+            message: 'Advertisement fetched successfully',
+            advertisement
+        });
+    } catch (err) {
+        throw new ApiError(err.message, 500);
+    }
+}
+
+
+
+
+
+
 

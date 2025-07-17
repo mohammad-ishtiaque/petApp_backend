@@ -8,65 +8,69 @@ const Owner = require('../Owner/Owner');
 
 
 exports.register = async (req, res, next) => {
-    const { name, email, phone, password, confirmPassword, role } = req.body;
+  const { name, email, phone, password, confirmPassword, role } = req.body;
 
-    try {
-        // Check if password and confirm password match
-        if (password !== confirmPassword) {
-            throw new ApiError('Password and confirm password do not match', 400);
-        }
-
-        // Check if user already exists in main User collection
-        const existingUser = await User.findOne({ email });
-        const existingOwner = await Owner.findOne({ email });
-
-        if (existingUser || existingOwner) {
-            throw new ApiError('User already exists', 409);
-        }
-
-        // Check if there's a pending verification in TempUser
-        let tempUser = await TempUser.findOne({ email });
-        if (tempUser) {
-            await TempUser.findOneAndDelete({ email });
-        }
-
-        // Hash password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        // Generate verification code using tokenService
-        const verificationCode = tokenService.generateVerificationCode();
-
-        // Create temporary user
-        tempUser = new TempUser({
-            name,
-            email,
-            phone,
-            password: hashedPassword,
-            verificationCode: {
-                code: verificationCode,
-                expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
-            },
-            role: role.toUpperCase()
-        });
-
-        await tempUser.save();
-
-        // Send verification email
-        try {
-            await emailService.sendVerificationCode(email, verificationCode);
-            return res.status(201).json({
-                success: true,
-                message: 'Please verify your email to complete registration',
-                email
-            });
-        } catch (emailError) {
-            await TempUser.findOneAndDelete({ email });
-            return next(new ApiError('Failed to send verification email', 500));
-        }
-    } catch (err) {
-        return next(err);
+  try {
+    // Check if password and confirm password match
+    if (password !== confirmPassword) {
+      throw new ApiError('Password and confirm password do not match', 400);
     }
+
+    // Check if user already exists in main User collection
+    const existingUser = await User.findOne({ email });
+    const existingOwner = await Owner.findOne({ email });
+
+    if (existingUser || existingOwner) {
+      throw new ApiError('User already exists', 409);
+    }
+
+    // Check if there's a pending verification in TempUser
+    let tempUser = await TempUser.findOne({ email });
+    if (tempUser) {
+      await TempUser.findOneAndDelete({ email });
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Generate verification code using tokenService
+    const verificationCode = tokenService.generateVerificationCode();
+
+    const roleUpper = role?.toUpperCase();
+    if (!["USER", "OWNER"].includes(roleUpper)) {
+      throw new ApiError('Invalid role', 400);
+    }
+    // Create temporary user
+    tempUser = new TempUser({
+      name,
+      email,
+      phone,
+      password: hashedPassword,
+      verificationCode: {
+        code: verificationCode,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+      },
+      role: roleUpper
+    });
+
+    await tempUser.save();
+
+    // Send verification email
+    try {
+      await emailService.sendVerificationCode(email, verificationCode);
+      return res.status(201).json({
+        success: true,
+        message: 'Please verify your email to complete registration',
+        email
+      });
+    } catch (emailError) {
+      await TempUser.findOneAndDelete({ email });
+      return next(new ApiError('Failed to send verification email', 500));
+    }
+  } catch (err) {
+    return next(err);
+  }
 };
 
 // LOGIN
@@ -77,9 +81,9 @@ exports.login = async (req, res, next) => {
     const owner = await Owner.findOne({ email }).select('+password');
 
     if (!user && !owner) throw new ApiError('User not found', 404);
-    
+
     if (!user?.isVerified && !owner?.isVerified) throw new ApiError('Email not verified', 403);
-    
+
     // Check if user or owner exists
     const existingUser = user || owner;
     if (!existingUser) throw new ApiError('User not found', 404);
@@ -95,7 +99,7 @@ exports.login = async (req, res, next) => {
       message: 'Login successful',
       accessToken,
       refreshToken,
-      user: { id: existingUser._id, name: existingUser.name, email: existingUser.email }
+      user: { id: existingUser._id, name: existingUser.name, email: existingUser.email, role: existingUser.role }
     });
   } catch (err) {
     return next(err);
@@ -149,12 +153,12 @@ exports.forgotPassword = async (req, res, next) => {
     const resetCode = tokenService.generateVerificationCode();
     if (user) user.passwordResetCode = { code: resetCode, expiresAt: new Date(Date.now() + 10 * 60 * 1000) };
     if (owner) owner.passwordResetCode = { code: resetCode, expiresAt: new Date(Date.now() + 10 * 60 * 1000) };
-   
+
     if (user) await user.save();
     if (owner) await owner.save();
     // Send password reset code
     await emailService.sendPasswordResetCode(email, resetCode);
-    
+
     return res.status(200).json({
       success: true,
       message: 'Password reset code sent to your email.'
@@ -176,7 +180,7 @@ exports.resetPassword = async (req, res, next) => {
     if (!user && !owner) throw new ApiError('User not found', 404);
     if (password !== confirmPassword) throw new ApiError('Passwords do not match', 400);
 
-    if(user){
+    if (user) {
       if (!user.passwordResetCode || user.passwordResetCode.code !== code || user.passwordResetCode.expiresAt < new Date()) {
         throw new ApiError('Invalid or expired reset code', 400);
       }
@@ -191,8 +195,8 @@ exports.resetPassword = async (req, res, next) => {
       });
 
     }
-    
-    if(owner){
+
+    if (owner) {
       if (!owner.passwordResetCode || owner.passwordResetCode.code !== code || owner.passwordResetCode.expiresAt < new Date()) {
         throw new ApiError('Invalid or expired reset code', 400);
       }

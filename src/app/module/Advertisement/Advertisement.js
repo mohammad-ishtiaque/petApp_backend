@@ -5,6 +5,7 @@ const advertisementSchema = new mongoose.Schema({
     advertisementImg: [{ type: String }],
     businessId: { type: mongoose.Schema.Types.ObjectId, ref: 'Business' },
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Owner' },
+    businessType: { type: String },
     createdAt: { type: Date, default: Date.now }
 }, { timestamps: true })
 
