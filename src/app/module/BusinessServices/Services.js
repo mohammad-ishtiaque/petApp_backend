@@ -6,7 +6,6 @@ const serviceSchema = new mongoose.Schema({
         enum: ['VET', 'SHOP', 'HOTEL', 'TRAINING', 'FRIENDLY', 'GROOMING'],
         required: true
     },
-
     serviceName: {
         type: String,
         required: true
@@ -15,7 +14,6 @@ const serviceSchema = new mongoose.Schema({
     location: {
         type: String,
     },
-
     openingTime: {
         type: String,
         required: true
@@ -25,19 +23,16 @@ const serviceSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-
-
     offDay: {
         type: String,
         required: true
     },
-
     websiteLink: {
         type: String,
     },
 
     servicesImages: [{ type: String }],
- 
+    
     businessId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Business',
@@ -47,4 +42,3 @@ const serviceSchema = new mongoose.Schema({
 const Service = mongoose.model('Service', serviceSchema);
 
 module.exports = Service;
- 

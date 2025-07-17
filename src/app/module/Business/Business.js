@@ -32,12 +32,8 @@ const businessSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Advertisement'
     },
-    // servicesId: {
-    //     type: mongoose.Schema.Types.ObjectId,
-    //     ref: 'Service',
-    // },
-    // services: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Service' }],
-    // reviews: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Review' }],
+    services: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Service' }],
+    reviews: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Review' }],
     createdAt: { type: Date, default: Date.now }
   });
   
