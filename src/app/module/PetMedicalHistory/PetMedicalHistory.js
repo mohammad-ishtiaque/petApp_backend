@@ -14,12 +14,19 @@ const petMedicalHistorySchema = new mongoose.Schema({
     treatmentName: {
         type: String,
     },
+    doctorName: {
+        type: String,
+    },
     treatmentDescription: {
         type: String,
     },
-    treatmentCategory: {
+    // treatmentCategory: {
+    //     type: String,
+    //     enum: ['WELLNESS', 'MEDICAL_RECORD'],
+    treatmentStatus: {
         type: String,
-        enum: ['WELLNESS', 'MEDICAL_RECORD'],
+        enum: ['PENDING', 'COMPLETED'], 
+        default: 'PENDING'
     },
 }, { timestamps: true })
 
