@@ -102,8 +102,51 @@ const isVerified = asyncHandler(async (req, res, next) => {
   next();
 });
 
+/**
+ * Middleware to authenticate owners and users
+ */
+const authenticateOwnerAndUser = asyncHandler(async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    throw new ApiError('Authorization token is required', 401);
+  }
+  const token = authHeader.split(' ')[1];
+  if (!token) {
+    throw new ApiError('Invalid authorization format', 401);
+  }
+  // console.log(token);
+  const decoded = tokenService.verifyAccessToken(token);
+
+  // console.log("decoded", decoded);
+  if (!decoded || (decoded.role !== 'USER' && decoded.role !== 'OWNER')) {
+    throw new ApiError('Invalid or unauthorized token', 401);
+  }
+  let user;
+  if(decoded.role === 'USER'){
+    user = await User.findById(decoded.id).select('-password');
+  } else if(decoded.role === 'OWNER'){
+    user = await Owner.findById(decoded.id).select('-password');
+  }
+  if (!user) {
+    throw new ApiError('User not found', 401);
+  }
+  if (user.isVerified === false) {
+    throw new ApiError('Email not verified. Please verify your email to continue.', 403);
+  }
+  req.user = {
+    id: user._id,
+    email: user.email,
+    role: decoded.role,
+    ...(user.name && { name: user.name }),
+    ...(user.businessName && { businessName: user.businessName })
+  };
+  next();
+});
+
+
 module.exports = {
   authenticateUser,
   authenticateOwner,
+  authenticateOwnerAndUser,
   isVerified
 };

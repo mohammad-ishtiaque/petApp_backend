@@ -31,7 +31,7 @@ app.use('/api/owner', require('./app/module/Owner/owner.router'));
 app.use('/api/business', require('./app/module/Business/business.router'));
 app.use('/api/services', require('./app/module/BusinessServices/services.router'));
 app.use('/api/advertisement', require('./app/module/Advertisement/advertisement.router'));
-
+app.use('/api/pet-medical-history', require('./app/module/PetMedicalHistory/PetMedicalHistory.router'));
 
 // app.use('/api/auth', require('./app/module/Auth/auth.routes'));
 // app.use('/api/users', require('./app/module/User/user.routes'));
