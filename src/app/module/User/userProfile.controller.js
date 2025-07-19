@@ -8,7 +8,6 @@ exports.getUserProfile = async (req, res, next) => {
     try {
         const user = await User.findById(req.user.id);
         const pet = await Pet.find({ userId: req.user.id });
-        console.log(pet);
         if (!user) throw new ApiError('User not found', 404);
         return res.status(200).json({
             success: true,

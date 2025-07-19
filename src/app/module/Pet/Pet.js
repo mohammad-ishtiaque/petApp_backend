@@ -41,10 +41,6 @@ const petSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
-  medicalHistory: {
-    type: String,
-    default: ''
-  },
   photo: {
     type: String,
     default: ''
@@ -54,7 +50,7 @@ const petSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  petPhoto: [{type:String}],
+  petPhoto: [{ type: String }],
   createdAt: {
     type: Date,
     default: Date.now

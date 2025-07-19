@@ -80,3 +80,16 @@ exports.deletePet = async (req, res) => {
     }
 }
 
+//this is for the admin to get all pets
+// exports.getAllPets = async (req, res) => {
+//     try {
+//         const pet = await Pet.find();
+//         if (!pet) throw new ApiError('Pet not found', 404);
+//         return res.status(200).json({
+//             success: true,
+//             pet
+//         });
+//     } catch (err) {
+//         return next(err);
+//     }
+// };
