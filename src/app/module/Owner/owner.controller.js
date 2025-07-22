@@ -6,6 +6,8 @@ const upload = require('../../../utils/upload');
 const asyncHnadler = require('../../../utils/asyncHandler');
 const Business = require('../Business/Business');
 const Service = require('../BusinessServices/Services');
+const Booking = require('../Booking/Booking');
+const asyncHandler = require('../../../utils/asyncHandler');
 
 exports.getOwnerDetails = asyncHnadler(async (req, res, next) => {
   const id = req.owner.id || req.owner._id;
@@ -25,7 +27,7 @@ exports.getOwnerDetails = asyncHnadler(async (req, res, next) => {
 
 exports.updateOwnerDetails = asyncHnadler(async (req, res, next) => {
 
-  const id  = req.owner.id || req.owner._id;
+  const id = req.owner.id || req.owner._id;
 
   const owner = await Owner.findById(id);
   if (!owner) {
@@ -88,18 +90,48 @@ exports.getOwnerBusinesses = asyncHnadler(async (req, res, next) => {
 
 //when owner logged in. we will get the owner id. 
 //if we push the booking id int the owner section they will see those. 
-exports.getAllBookings = asyncHnadler(async (req, res, next) =>{
-  const id = req.owner.id || req.owner._id;
-  // console.log(id)
-  const owner = await Owner.find(id);
-  // const bookingIds = owner.bookings
-  // console.log(owner.bookings.length);
-  const bookingSize = owner.bookings?.length;
-  console.log(bookingSize)
-  // if(bookingSize){
-  //   let bookingId;
-  //   for(let i = 0; i<bookingSize; i++){
-  //     console.log(owner.bookings[i]._id);
-  //   }
-  // }
-})
+exports.getAllBookingsByOwner = asyncHandler(async (req, res, next) => {
+  const ownerId = req.owner.id || req.owner._id;
+
+  const owner = await Owner.findById(ownerId).populate('bookings'); // automatically gets booking data
+
+  if (!owner || !owner.bookings || owner.bookings.length === 0) {
+    return res.status(404).json({
+      success: false,
+      message: 'No bookings found for this owner',
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Bookings fetched successfully',
+    bookings: owner.bookings, // no circular structure now
+  });
+});
+
+
+exports.updateBookingStatus = asyncHandler(async (req, res) => {
+  const  bookingId  = req.params._id || req.params.id;
+  const { status } = req.body;
+
+  const validStatuses = ['PENDING', 'COMPLETED', 'REJECTED', 'APPROVED'];
+ 
+  if (!validStatuses.includes(status)) {
+    throw new ApiError(`Invalid booking status. Allowed: ${validStatuses.join(', ')}`, 400);
+  }
+
+  const booking = await Booking.findById(bookingId);
+  if (!booking) {
+    throw new ApiError('Booking not found', 404);
+  }
+
+  booking.bookingStatus = status;
+  await booking.save();
+
+  res.status(200).json({
+    success: true,
+    message: `Booking status updated to ${status}`,
+    booking
+  });
+});
+

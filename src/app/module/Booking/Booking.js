@@ -17,15 +17,16 @@ const bookingSchema = new mongoose.Schema({
     },
     bookingStatus: {
         type: String,
-        enum: ['PENDING', 'COMPLETED', 'REJECTED'],
+        enum: ['PENDING', 'COMPLETED', 'REJECTED', 'APPROVED'],
         default: 'PENDING'
     },
     notes: {
         type: String,
     },
-    serviceName: {
+    selectedService: {
         type: String,
     },
+    
     businessId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Business',

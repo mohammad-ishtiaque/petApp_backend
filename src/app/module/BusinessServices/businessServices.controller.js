@@ -11,7 +11,7 @@ exports.createService = asyncHandler(async (req, res, next) => {
         const businessId = business._id;
        
         const servicesImages = req.files ? req.files.map(file => file.path) : [];
-        const { serviceType, serviceName, location, openingTime, closingTime, offDay, websiteLink } = req.body;
+        const { serviceType, serviceName, location, openingTime, closingTime, offDay,providings, websiteLink } = req.body;
         const service = new Service({
             serviceType,
             serviceName,
@@ -20,6 +20,7 @@ exports.createService = asyncHandler(async (req, res, next) => {
             closingTime,
             offDay,
             websiteLink,
+            providings,
             servicesImages,
             businessId
         });

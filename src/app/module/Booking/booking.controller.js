@@ -7,12 +7,16 @@ const Owner = require('../Owner/Owner');
 
 exports.createBooking = asyncHandler(async (req, res) => {
     const userId = req.user.id || req.user._id;
-    const { serviceId, bookingDate, bookingTime, bookingStatus, notes, businessId } = req.body;
+    const { serviceId, bookingDate, bookingTime, bookingStatus, notes, selectedService, businessId } = req.body;
     // if (!serviceId || !bookingDate || !bookingTime || !bookingStatus || !notes || !businessId) throw new ApiError('All fields are required', 400);
     
     const business = await Business.findById(businessId);
+    const service = await Service.findById(serviceId)
+    // console.log(service)
     const ownerId = business.ownerId;
+    // console.log(ownerId)
     const owner = await Owner.findById(ownerId);
+    // console.log(owner)
 
     const booking = new  Booking({
         serviceId,
@@ -21,13 +25,15 @@ exports.createBooking = asyncHandler(async (req, res) => {
         bookingTime,
         bookingStatus,
         notes,
+        selectedService,
         businessId,
         ownerId
     });
-
     owner.bookings.push(booking._id);   //push the booking id to the owner bookings
     await owner.save();
-    console.log(owner);
+    service.bookings.push(booking._id);
+    // console.log(owner);
+    await service.save();
     await booking.save();
 
     res.status(201).json({

@@ -79,7 +79,7 @@ exports.login = async (req, res, next) => {
   try {
     const user = await User.findOne({ email }).select('+password');
     const owner = await Owner.findOne({ email }).select('+password');
-    console.log(owner)
+    // console.log(owner)
 
     if (!user && !owner) throw new ApiError('User not found', 404);
 
