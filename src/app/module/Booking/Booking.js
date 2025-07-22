@@ -23,10 +23,17 @@ const bookingSchema = new mongoose.Schema({
     notes: {
         type: String,
     },
+    serviceName: {
+        type: String,
+    },
     businessId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Business',
     },
+    ownerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Owner',
+    }
     
 }, { timestamps: true })
 

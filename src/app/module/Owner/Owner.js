@@ -48,7 +48,7 @@ const ownerSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-
+  bookings: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Booking' }],
   businesses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Business' }]
 });
 

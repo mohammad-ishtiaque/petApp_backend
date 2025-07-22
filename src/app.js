@@ -29,10 +29,10 @@ app.use('/api/pet', require('./app/module/Pet/pet.router'));
 app.use('/api/user', require('./app/module/User/userprofile.router'));
 app.use('/api/owner', require('./app/module/Owner/owner.router'));
 app.use('/api/business', require('./app/module/Business/business.router'));
-app.use('/api/services', require('./app/module/BusinessServices/services.router'));
+app.use('/api/services', require('./app/module/BusinessServices/businessServices.router'));
 app.use('/api/advertisement', require('./app/module/Advertisement/advertisement.router'));
 app.use('/api/pet-medical-history', require('./app/module/PetMedicalHistory/PetMedicalHistory.router'));
-
+app.use('/api/booking', require('./app/module/Booking/booking.router'));
 // app.use('/api/auth', require('./app/module/Auth/auth.routes'));
 // app.use('/api/users', require('./app/module/User/user.routes'));
 // app.use('/api/owners', require('./app/module/Owner/owner.routes'));

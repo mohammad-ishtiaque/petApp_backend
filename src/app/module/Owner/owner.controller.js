@@ -5,6 +5,7 @@ const path = require('path');
 const upload = require('../../../utils/upload');
 const asyncHnadler = require('../../../utils/asyncHandler');
 const Business = require('../Business/Business');
+const Service = require('../BusinessServices/Services');
 
 exports.getOwnerDetails = asyncHnadler(async (req, res, next) => {
   const id = req.owner.id || req.owner._id;
@@ -70,3 +71,35 @@ exports.deleteOwner = asyncHnadler(async (req, res, next) => {
   });
 });
 
+
+exports.getOwnerBusinesses = asyncHnadler(async (req, res, next) => {
+  const id = req.owner.id || req.owner._id;
+  const businesses = await Business.find({ ownerId: id });
+  const services = await Service.find({ businessId: { $in: businesses.map(business => business._id) } });
+
+  res.status(200).json({
+    success: true,
+    message: 'Businesses fetched successfully',
+    services,
+    businesses
+  });
+});
+
+
+//when owner logged in. we will get the owner id. 
+//if we push the booking id int the owner section they will see those. 
+exports.getAllBookings = asyncHnadler(async (req, res, next) =>{
+  const id = req.owner.id || req.owner._id;
+  // console.log(id)
+  const owner = await Owner.find(id);
+  // const bookingIds = owner.bookings
+  // console.log(owner.bookings.length);
+  const bookingSize = owner.bookings?.length;
+  console.log(bookingSize)
+  // if(bookingSize){
+  //   let bookingId;
+  //   for(let i = 0; i<bookingSize; i++){
+  //     console.log(owner.bookings[i]._id);
+  //   }
+  // }
+})

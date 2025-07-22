@@ -9,7 +9,7 @@ const upload = require('../../../utils/upload');
 
 exports.createBusiness = async (req, res, next) => {
     const ownerId = req.owner.id;
-    console.log(ownerId);
+    // console.log(ownerId);
     // console.log(req.owner.id);
     // console.log(req.files););
     const { businessName, businessType, website, address, moreInfo } = req.body;
@@ -20,7 +20,7 @@ exports.createBusiness = async (req, res, next) => {
         const business = new Business({
             ownerId,
             businessName,
-            businessType,
+            // businessType: businessType.toUpperCase(),
             website,
             address,
             moreInfo,
@@ -76,7 +76,7 @@ exports.getBusinessById = async (req, res, next) => {
 
 exports.updateBusiness = async (req, res, next) => {
     const businessId = req.params.id;
-    const { businessName, businessType, website, address, moreInfo } = req.body;
+    const { businessName,businessType, website, address, moreInfo } = req.body;
     const { shopLogo, shopPic } = req.files;
     try {
         const business = await Business.findById(businessId);
@@ -95,7 +95,7 @@ exports.updateBusiness = async (req, res, next) => {
         }
         await business.save();
         business.businessName = businessName;
-        business.businessType = businessType;
+        // business.businessType = businessType;
         business.website = website;
         business.address = address;
         business.moreInfo = moreInfo;
@@ -115,6 +115,9 @@ exports.deleteBusiness = async (req, res, next) => {
     try {
         const business = await Business.findByIdAndDelete(businessId);
         if (!business) throw new ApiError('Business not found', 404);
+        const owner = await Owner.findByIdAndUpdate(business.ownerId, { $pull: { businesses: businessId } });
+        if (!owner) throw new ApiError('Owner not found', 404);
+        await business.deleteOne();
         return res.status(200).json({
             success: true,
             message: 'Business deleted successfully',

@@ -9,10 +9,11 @@ const businessSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
-    businessType: {
-        type: String,
-        enum:   ['VET', 'SHOP', 'HOTEL', 'TRAINING', 'FRIENDLY', 'GROOMING']
-    }, // ['vet', 'shop', 'hotel', etc.]
+    // businessType: {
+    //     type: String,
+    //     enum:   ['VET', 'SHOP', 'HOTEL', 'TRAINING', 'FRIENDLY', 'GROOMING'],
+    //     trim: true
+    // }, 
     website: {
         type: String,
     },

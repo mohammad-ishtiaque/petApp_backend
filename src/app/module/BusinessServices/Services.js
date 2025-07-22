@@ -4,7 +4,7 @@ const serviceSchema = new mongoose.Schema({
     serviceType: {
         type: String,
         enum: ['VET', 'SHOP', 'HOTEL', 'TRAINING', 'FRIENDLY', 'GROOMING'],
-        required: true
+        trim: true
     },
     serviceName: {
         type: String,

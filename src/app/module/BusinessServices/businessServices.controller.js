@@ -1,16 +1,14 @@
 const Service = require('./Services');
 const Business = require('../Business/Business');
 const { ApiError } = require('../../../errors/errorHandler');
+const asyncHandler = require('../../../utils/asyncHandler');
 
-// const ApiError = require('../../../utils/ApiError');
-
-exports.createService = async (req, res, next) => {
+exports.createService = asyncHandler(async (req, res, next) => {
     try {
         const ownerId = req.owner.id;
         // console.log(ownerId);
         const business = await Business.findOne({ ownerId });
         const businessId = business._id;
-
        
         const servicesImages = req.files ? req.files.map(file => file.path) : [];
         const { serviceType, serviceName, location, openingTime, closingTime, offDay, websiteLink } = req.body;
@@ -25,6 +23,10 @@ exports.createService = async (req, res, next) => {
             servicesImages,
             businessId
         });
+
+        business.services.push(service._id);
+        await business.save();
+
         await service.save();
         return res.status(201).json({
             success: true,
@@ -34,17 +36,19 @@ exports.createService = async (req, res, next) => {
     } catch (err) {
         throw new ApiError(err.message, 500);
     }
-};
+});
 
 
-exports.getAllServices = async (req, res, next) => {
+exports.getAllServices = asyncHandler(async (req, res, next) => {
     const ownerId = req.owner.id;
     const business = await Business.findOne({ ownerId });
     const businessId = business._id;
     try {
         const services = await Service.find({ businessId });
+
         // console.log(businessDetails);
         if (!services) throw new ApiError('Services not found', 404);
+        if (services.length === 0) throw new ApiError('No services found', 404);
         return res.status(200).json({
             success: true,
             message: 'Services fetched successfully',
@@ -53,11 +57,11 @@ exports.getAllServices = async (req, res, next) => {
     } catch (err) {
         throw new ApiError(err.message, 500);
     }
-};
+});
 
-exports.updateService = async (req, res, next) => {
+exports.updateService = asyncHandler(async (req, res, next) => {
     try {
-        const service = await Service.findByIdAndUpdate(req.params.serviceId, req.body, { new: true });
+        const service = await Service.findByIdAndUpdate(req.params.id, req.body, { new: true });
         if (!service) throw new ApiError('Service not found', 404);
         res.status(200).json({
             success: true,
@@ -67,12 +71,17 @@ exports.updateService = async (req, res, next) => {
     } catch (err) {
         throw new ApiError(err.message, 500);
     }
-};
+});
 
-exports.deleteService = async (req, res, next) => {
+exports.deleteService = asyncHandler(async (req, res, next) => {
     try {
-        const service = await Service.findByIdAndDelete(req.params.serviceId);
+        const serviceId = req.params.id;
+        console.log(serviceId);
+        const service = await Service.findByIdAndUpdate(serviceId);
         if (!service) throw new ApiError('Service not found', 404);
+        const business = await Business.findByIdAndUpdate(service.businessId, { $pull: { services: serviceId } });
+        if (!business) throw new ApiError('Business not found', 404);
+        await service.deleteOne();
         res.status(200).json({
             success: true,
             message: 'Service deleted successfully',
@@ -81,9 +90,10 @@ exports.deleteService = async (req, res, next) => {
     } catch (err) {
         throw new ApiError(err.message, 500);
     }
-};
+});
 
-exports.getServicesById = async (req, res, next) => {
+
+exports.getServicesById = asyncHandler(async (req, res, next) => {
     try {
         const service = await Service.findById(req.params.serviceId);
         if (!service) throw new ApiError('Service not found', 404);
@@ -95,7 +105,7 @@ exports.getServicesById = async (req, res, next) => {
     } catch (err) {
         throw new ApiError(err.message, 500);
     }
-};
+});
 
 
 
