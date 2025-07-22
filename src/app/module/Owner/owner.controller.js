@@ -135,3 +135,30 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
   });
 });
 
+exports.getBookingsByServiceType = asyncHandler(async (req, res) => {
+  const  {type}  = req.body;
+  const validTypes = ['VET', 'SHOP', 'HOTEL', 'TRAINING', 'FRIENDLY', 'GROOMING'];
+
+  if (!validTypes.includes(type.toUpperCase())) {
+    throw new ApiError(`Invalid service type. Use one of: ${validTypes.join(', ')}`, 400);
+  }
+
+  // 1. Populate serviceId and match by serviceType
+  const bookings = await Booking.find()
+    .populate({
+      path: 'serviceId',
+      match: { serviceType: type.toUpperCase() },
+    })
+    // .populate('userId')
+    // .populate('businessId');
+
+  // 2. Filter out bookings with null serviceId (non-matching serviceType)
+  const filteredBookings = bookings.filter(booking => booking.serviceId !== null);
+
+  res.status(200).json({
+    success: true,
+    message: `Bookings with serviceType ${type.toUpperCase()} fetched successfully`,
+    count: filteredBookings.length,
+    bookings: filteredBookings
+  });
+});

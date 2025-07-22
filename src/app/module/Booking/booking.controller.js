@@ -26,6 +26,7 @@ exports.createBooking = asyncHandler(async (req, res) => {
         bookingStatus,
         notes,
         selectedService,
+        serviceType: service?.serviceType,
         businessId,
         ownerId
     });
