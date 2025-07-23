@@ -33,6 +33,7 @@ app.use('/api/services', require('./app/module/BusinessServices/businessServices
 app.use('/api/advertisement', require('./app/module/Advertisement/advertisement.router'));
 app.use('/api/pet-medical-history', require('./app/module/PetMedicalHistory/PetMedicalHistory.router'));
 app.use('/api/booking', require('./app/module/Booking/booking.router'));
+app.use('/api/review', require('./app/module/Review/review.router'))
 // app.use('/api/auth', require('./app/module/Auth/auth.routes'));
 // app.use('/api/users', require('./app/module/User/user.routes'));
 // app.use('/api/owners', require('./app/module/Owner/owner.routes'));
