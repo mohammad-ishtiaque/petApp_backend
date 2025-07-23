@@ -8,6 +8,7 @@ const Business = require('../Business/Business');
 const Service = require('../BusinessServices/Services');
 const Booking = require('../Booking/Booking');
 const asyncHandler = require('../../../utils/asyncHandler');
+const Pet = require('../Pet/Pet')
 
 exports.getOwnerDetails = asyncHnadler(async (req, res, next) => {
   const id = req.owner.id || req.owner._id;
@@ -143,22 +144,43 @@ exports.getBookingsByServiceType = asyncHandler(async (req, res) => {
     throw new ApiError(`Invalid service type. Use one of: ${validTypes.join(', ')}`, 400);
   }
 
-  // 1. Populate serviceId and match by serviceType
-  const bookings = await Booking.find()
-    .populate({
-      path: 'serviceId',
-      match: { serviceType: type.toUpperCase() },
-    })
-    // .populate('userId')
-    // .populate('businessId');
-
-  // 2. Filter out bookings with null serviceId (non-matching serviceType)
-  const filteredBookings = bookings.filter(booking => booking.serviceId !== null);
+  const bookings = await Booking.find({ serviceType: type.toUpperCase() });
 
   res.status(200).json({
     success: true,
     message: `Bookings with serviceType ${type.toUpperCase()} fetched successfully`,
-    count: filteredBookings.length,
-    bookings: filteredBookings
+    count: bookings.length,
+    bookings
   });
 });
+
+
+exports.getBookedPetsByOwner = async (req, res, next) => {
+  try {
+    const  ownerId  = req.params.id || req.params._id;
+
+    // 1. Get all services under this owner
+    const services = await Service.find({ ownerId });
+    const serviceIds = services.map(service => service._id);
+
+    // 2. Get all bookings for those services
+    const bookings = await Booking.find({ serviceId: { $in: serviceIds } });
+    const userIds = [...new Set(bookings.map(b => b.userId.toString()))];
+
+    // 3. Get all pets under those users
+    const pets = await Pet.find({ userId: { $in: userIds } });
+
+    res.status(200).json({
+      success: true,
+      totalPets: pets.length,
+      pets
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Something went wrong',
+      error: error.message
+    });
+  }
+};

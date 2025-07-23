@@ -4,6 +4,7 @@ const { ApiError } = require('../../../errors/errorHandler');
 const Service = require('../BusinessServices/Services');
 const Business = require('../Business/Business');
 const Owner = require('../Owner/Owner');
+const Pet = require('../Pet/Pet');
 
 exports.createBooking = asyncHandler(async (req, res) => {
     const userId = req.user.id || req.user._id;
@@ -12,6 +13,7 @@ exports.createBooking = asyncHandler(async (req, res) => {
     
     const business = await Business.findById(businessId);
     const service = await Service.findById(serviceId)
+    const pet = await Pet.find({ })
     // console.log(service)
     const ownerId = business.ownerId;
     // console.log(ownerId)
@@ -92,4 +94,3 @@ exports.getBookingsByServiceId = asyncHandler(async (req, res) => {
         bookings
     });
 });
-
