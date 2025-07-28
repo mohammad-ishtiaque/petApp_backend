@@ -2,11 +2,12 @@ const User = require('../User/User');
 const Pet = require('../Pet/Pet');
 const { ApiError } = require('../../../errors/errorHandler');
 const bcrypt = require('bcrypt');
+const Booking = require('../Booking/Booking');
 
 
 exports.getUserProfile = async (req, res, next) => {
     try {
-        const user = await User.findById(req.user.id);
+        const user = await User.findById(req.user.id).select('-password');  
         const pet = await Pet.find({ userId: req.user.id });
         if (!user) throw new ApiError('User not found', 404);
         return res.status(200).json({
@@ -21,7 +22,7 @@ exports.getUserProfile = async (req, res, next) => {
 
 exports.updateUserProfile = async (req, res, next) => {
     try {
-        const user = await User.findById(req.user.id);
+        const user = await User.findById(req.user.id).select('-password');
         if (!user) throw new ApiError('User not found', 404);
         user.name = req.body.name || user.name;
         user.address = req.body.address || user.address;
@@ -44,7 +45,7 @@ exports.updateUserProfile = async (req, res, next) => {
 exports.getMyPets = async (req, res, next) => {
 
     try {
-        const user = await User.findById(req.user.id);
+        const user = await User.findById(req.user.id).select('-password');
         if (!user) throw new ApiError('User not found', 404);
         const pet = await Pet.find({ userId: req.user.id });
         return res.status(200).json({
@@ -65,7 +66,7 @@ exports.getMyPets = async (req, res, next) => {
 
 exports.changePassword = async (req, res, next) => { // start of change password function
     try {
-        const user = await User.findById(req.user.id); // get user from database
+        const user = await User.findById(req.user.id).select('-password'); // get user from database
         // get old, new and confirm password from request body
         const { oldPassword, newPassword, confirmPassword } = req.body;
         if (!user) throw new ApiError('User not found', 404); // if user does not exist, throw error
@@ -101,4 +102,16 @@ exports.deleteAccount = async (req, res, next) => {
 };
 
 
+exports.getMyAppointment = async(req, res, next) => {
+    try {
+        const userId = req.user.id || req.user._id;
+        const booking = await Booking.find({ userId })
+        return res.status(200).json({
+            success: true,
+            data: booking,
+        });
+    } catch (error) {
+        return next(error)
+    }
+}
 
