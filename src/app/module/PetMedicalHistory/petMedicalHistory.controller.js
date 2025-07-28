@@ -15,7 +15,7 @@ exports.createPetMedicalHistory = asyncHandler(async (req, res) => {
         treatmentName,
         doctorName,
         treatmentDescription,
-        treatmentStatus: treatmentStatus.toUpperCase(),
+        treatmentStatus: treatmentStatus?.toUpperCase(),
         // treatmentCategory: treatmentCategory.toUpperCase()
     });
     res.status(201).json({
@@ -32,7 +32,7 @@ exports.getPetMedicalHistoryByTreatmentCategory = asyncHandler(async (req, res) 
     const petMedicalHistory = await PetMedicalHistory.find({ petId });
     if (!petMedicalHistory) throw new ApiError('Pet Medical History not found', 404);
     // console.log(petMedicalHistory.treatmentCategory)
-    const petMedicalHistoryByTreatmentCategory = await PetMedicalHistory.find({ treatmentCategory: treatmentCategory.toUpperCase() });
+    const petMedicalHistoryByTreatmentCategory = await PetMedicalHistory.find({ treatmentCategory: treatmentCategory?.toUpperCase() });
     // console.log(petMedicalHistoryByTreatmentCategory)
 
     res.status(200).json({
@@ -73,4 +73,19 @@ exports.deletePetMedicalHistory = asyncHandler(async (req, res) => {
 });
 
 
+exports.getPetMedicalHistoryByPetId = asyncHandler(async (req, res) => {
+    const petId = req.params.petId;
+    // const treatmentCategory = req.query.treatmentCategory;
+    const petMedicalHistory = await PetMedicalHistory.find({ petId });
+    if (!petMedicalHistory) throw new ApiError('Pet Medical History not found', 404);
+    // console.log(petMedicalHistory.treatmentCategory)
+    // const petMedicalHistoryByTreatmentCategory = await PetMedicalHistory.find({ treatmentCategory: treatmentCategory.toUpperCase() });
+    // console.log(petMedicalHistoryByTreatmentCategory)
+
+    res.status(200).json({
+        success: true,
+        message: 'Pet Medical History retrieved successfully',
+        petMedicalHistory
+    });
+});
 

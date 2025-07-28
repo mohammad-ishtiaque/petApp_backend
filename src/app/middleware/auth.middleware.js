@@ -57,7 +57,9 @@ const authenticateOwner = asyncHandler(async (req, res, next) => {
   if (!decoded || decoded.role !== 'OWNER') {
     throw new ApiError('Invalid or unauthorized token', 401);
   }
+  // console.log(decoded.id)
   const owner = await Owner.findById(decoded.id).select('-password');
+  
   if (!owner) {
     throw new ApiError('Owner not found', 401);
   }

@@ -3,7 +3,7 @@ const router = express.Router();
 
 const { createBusiness, getBusiness, getBusinessById, updateBusiness, deleteBusiness, getAllBusiness, addAdvertisement } = require('./business.controller');
 const upload = require('../../../utils/upload');
-const { authenticateOwner } = require('../../middleware/auth.middleware');
+const { authenticateOwner, authenticateOwnerAndUser } = require('../../middleware/auth.middleware');
 
 
 router.post('/create', authenticateOwner, upload.fields([{name: 'shopLogo', maxCount: 1}, {name: 'shopPic', maxCount: 2}]), createBusiness);

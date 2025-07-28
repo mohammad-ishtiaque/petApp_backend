@@ -6,8 +6,8 @@ exports.createPet = async (req, res) => {
         const userId = req.user.id || req.user._id;
         // console.log(ownerId)
         const petPhoto = req.files ? req.files.map(file => file.path) : [];
-        const { name, animalType, breed, age, gender, weight, height, color, description, medicalHistory } = req.body;
-        const pet = new Pet({ name, animalType, breed, age, gender, weight, height, color, description, medicalHistory, userId, petPhoto });
+        const { name, animalType, breed, age, gender, weight, height, color, description } = req.body;
+        const pet = new Pet({ name, animalType, breed, age, gender, weight, height, color, description, userId, petPhoto });
         await pet.save();
         res.status(201).json({
             success: true,
@@ -21,7 +21,7 @@ exports.createPet = async (req, res) => {
 
 exports.getPet = async (req, res) => {
     try {
-        const  id  = req.params.petId;
+        const id = req.params.petId;
         const pet = await Pet.findById(id);
         if (!pet) {
             return res.status(404).json({ message: 'Pet not found' });
@@ -54,7 +54,7 @@ exports.updatePet = async (req, res) => {
 
 exports.deletePet = async (req, res) => {
     try {
-        const id  = req.params.petId;
+        const id = req.params.petId;
         const existingPet = await Pet.findById(id);
 
         if (existingPet.petPhoto && existingPet.petPhoto.length > 0) {
@@ -77,6 +77,23 @@ exports.deletePet = async (req, res) => {
             success: false,
             message: error.message
         });
+    }
+}
+
+exports.getAllPets = async (req, res) => {
+    try {
+        const userId = req.user.id || req.user._id;
+        const pet = Pet.find({ userId })
+        if (!pet) {
+            return res.status(404).json({ message: 'Pet not found' });
+        }
+        return res.status(200).json({
+            success: true,
+            message: 'Pet created successfully',
+            pet: pet
+        });
+    } catch (error) {
+        return next(new ApiError('Failed to create pet', 500));
     }
 }
 

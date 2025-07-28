@@ -1,7 +1,7 @@
 const express = require('express');
-const { createService, getAllServices, getServicesById, updateService, deleteService } = require('./services.controller');
+const { createService, getAllServices, getServicesById, updateService, deleteService } = require('./businessServices.controller');
 const router = express.Router();
-const { authenticateOwner } = require('../../middleware/auth.middleware');
+const { authenticateOwner, authenticateOwnerAndUser } = require('../../middleware/auth.middleware');
 const upload = require('../../../utils/upload');
 
 router.post('/createService',authenticateOwner,  upload.array('servicesImages', 2) ,createService);

@@ -24,7 +24,8 @@ const petSchema = new mongoose.Schema({
   gender: {
     type: String,
     required: true,
-    enum: ['MALE', 'FEMALE']
+    enum: ['MALE', 'FEMALE'],
+    trim: true
   },
   weight: {
     type: Number,
@@ -50,11 +51,14 @@ const petSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+
   petPhoto: [{ type: String }],
+  
   createdAt: {
     type: Date,
     default: Date.now
   },
+
   updatedAt: {
     type: Date,
     default: Date.now

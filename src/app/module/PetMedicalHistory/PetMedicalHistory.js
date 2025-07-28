@@ -27,10 +27,10 @@ const petMedicalHistorySchema = new mongoose.Schema({
         type: String,
         enum: ['PENDING', 'COMPLETED'], 
         default: 'PENDING'
-    },
+    }
+    
 }, { timestamps: true })
 
 const PetMedicalHistory = mongoose.model('PetMedicalHistory', petMedicalHistorySchema);
 
 module.exports = PetMedicalHistory;
-
