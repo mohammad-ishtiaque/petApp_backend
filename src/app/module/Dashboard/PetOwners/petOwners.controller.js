@@ -1,7 +1,7 @@
 const User = require('../../User/User');
 const { ApiError } = require('../../../../errors/errorHandler');
 const asyncHandler = require('../../../../utils/asyncHandler');
-
+const Pet = require('../../Pet/Pet');
 exports.getPetOwnerDetailsById = asyncHandler(async (req, res, next) => {
     try {
         const id = req.params.id || req.params._id;
@@ -9,10 +9,15 @@ exports.getPetOwnerDetailsById = asyncHandler(async (req, res, next) => {
         if (!user) {
             return next(new ApiError('User not found', 404));
         }
+        const pets = await Pet.find({userId: id});
+        if (!pets) {
+            return next(new ApiError('Pets not found', 404));
+        }
         res.status(200).json({
             success: true,
             message: 'User fetched successfully',
-            user
+            user,
+            pets
         });
     } catch (err) {
         return next(err);
