@@ -27,6 +27,10 @@ const ownerSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  isBlocked: {
+    type: Boolean,
+    default: false
+  },
   role: {
     type: String,
     enum: ['USER', 'ADMIN', 'OWNER'],
