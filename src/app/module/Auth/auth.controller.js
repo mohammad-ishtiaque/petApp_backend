@@ -241,3 +241,23 @@ exports.verifyCode = async (req, res, next) => {
 };
 
 
+exports.resendVerificationCode = async (req, res, next) => {
+  const { email } = req.body;
+  try {
+    let userOrOwner = await User.findOne({ email });
+    if (!userOrOwner) userOrOwner = await Owner.findOne({ email });
+    if (!userOrOwner) userOrOwner = await TempUser.findOne({ email });
+    if (!userOrOwner) throw new ApiError('User not found', 404);
+    const code = tokenService.generateVerificationCode();
+    userOrOwner.verificationCode = { code, expiresAt: new Date(Date.now() + 10 * 60 * 1000) };
+    await userOrOwner.save();
+    await emailService.sendVerificationCode(email, code);
+    return res.status(200).json({
+      success: true,
+      message: 'Verification code resent successfully.'
+    });
+  } catch (err) {
+    return next(err);
+  }
+};
+

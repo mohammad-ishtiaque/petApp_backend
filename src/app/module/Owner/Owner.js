@@ -44,6 +44,10 @@ const ownerSchema = new mongoose.Schema({
     code: String,
     expiresAt: Date
   },
+  verificationCode: {
+    code: String,
+    expiresAt: Date
+  },
   createdAt: {
     type: Date,
     default: Date.now
