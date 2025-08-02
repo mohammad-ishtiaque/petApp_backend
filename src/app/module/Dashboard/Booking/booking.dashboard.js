@@ -7,41 +7,44 @@ const asyncHandler = require('../../../../utils/asyncHandler');
 
 exports.getAllBusiness = asyncHandler(async (req, res, next) => {
     try {
-        const business = await Business.find().select('-password');
+        const business = await Business.find().select('-password'); 
         if (!business) {
             return next(new ApiError('business not found', 404));
         }
+        let businessCount = business.length;
+        // let bookingsCount = 0;
+        const businessWithBookings = await Promise.all(
+            business.map(async (businessItem) => {
+                const bookings = await Booking.find({ businessId: businessItem._id });
+                if (!bookings) {
+                    return next(new ApiError('bookings not found', 404));
+                }
+                return {
+                    ...businessItem.toObject(),
+                    bookingsCount: bookings.length,
+                };
+            })
+        );
         res.status(200).json({
             success: true,
             message: 'business fetched successfully',
-            business
+            business: businessWithBookings,
         });
     } catch (err) {
         return next(err);
     }
 });
 
-exports.getServicesByBusinessId = asyncHandler(async (req, res, next) => {
+exports.getAllBookingsByBusinessId = asyncHandler(async (req, res, next) => {
     try {
         const businessId = req.params._id || req.params.id;
-        const services = await BusinessServices.find({ businessId }).select('-password');
-        if (!services) {
-            return next(new ApiError('services not found', 404));
+        const bookings = await Booking.find({ businessId }).select('-password');
+        if (!bookings) {
+            return next(new ApiError('bookings not found', 404));
         }
-        const bookings = await Promise.all(
-            services.map(async (service) => {
-                const bookingIds = service.bookings;
-                const booking = await Booking.find({ _id: { $in: bookingIds } }).select('-password');
-                if (!booking) {
-                    return [];
-                }
-                return booking;
-            })
-        );
         res.status(200).json({
             success: true,
-            message: 'services fetched successfully',
-            services,
+            message: 'bookings fetched successfully',
             bookings
         });
     } catch (err) {

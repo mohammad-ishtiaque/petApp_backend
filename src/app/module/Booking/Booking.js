@@ -36,6 +36,10 @@ const bookingSchema = new mongoose.Schema({
     ownerId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Owner',
+    },
+    petId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Pet',
     }
     
 }, { timestamps: true })

@@ -8,17 +8,15 @@ const Pet = require('../Pet/Pet');
 
 exports.createBooking = asyncHandler(async (req, res) => {
     const userId = req.user.id || req.user._id;
-    const { serviceId, bookingDate, bookingTime, bookingStatus, notes, selectedService, businessId } = req.body;
+    const { serviceId, bookingDate, bookingTime, bookingStatus, notes, selectedService, businessId, petId } = req.body;
     // if (!serviceId || !bookingDate || !bookingTime || !bookingStatus || !notes || !businessId) throw new ApiError('All fields are required', 400);
     
     const business = await Business.findById(businessId);
-    const service = await Service.findById(serviceId)
-    const pet = await Pet.find({ })
-    // console.log(service)
+    const service = await Service.findById(serviceId);
+    const pet = await Pet.findById(petId);
+    if (!pet) throw new ApiError('Pet not found', 404);
     const ownerId = business.ownerId;
-    // console.log(ownerId)
     const owner = await Owner.findById(ownerId);
-    // console.log(owner)
 
     const booking = new  Booking({
         serviceId,
@@ -30,12 +28,12 @@ exports.createBooking = asyncHandler(async (req, res) => {
         selectedService,
         serviceType: service?.serviceType,
         businessId,
-        ownerId
+        ownerId,
+        petId
     });
     owner.bookings.push(booking._id);   //push the booking id to the owner bookings
     await owner.save();
     service.bookings.push(booking._id);
-    // console.log(owner);
     await service.save();
     await booking.save();
 
