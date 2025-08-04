@@ -5,7 +5,7 @@ const emailService = require('../../../utils/emailService');
 const tokenService = require('../../../utils/tokenService');
 const { ApiError } = require('../../../errors/errorHandler');
 const Owner = require('../Owner/Owner');
-
+const Admin = require('../Admin/Admin');
 
 exports.register = async (req, res, next) => {
   const { name, email, phone, password, confirmPassword, role } = req.body;
@@ -79,14 +79,16 @@ exports.login = async (req, res, next) => {
   try {
     const user = await User.findOne({ email }).select('+password');
     const owner = await Owner.findOne({ email }).select('+password');
+    const admin = await Admin.findOne({ email }).select('+password');
+    const superAdmin = await Admin.findOne({ email }).select('+password');
     // console.log(owner)
 
-    if (!user && !owner) throw new ApiError('User not found', 404);
+    if (!user && !owner && !admin && !superAdmin) throw new ApiError('User not found', 404);
 
-    if (!user?.isVerified && !owner?.isVerified) throw new ApiError('Email not verified', 403);
+    if (!user?.isVerified && !owner?.isVerified && !admin?.isVerified && !superAdmin?.isVerified) throw new ApiError('Email not verified', 403);
 
     // Check if user or owner exists
-    const existingUser = user || owner;
+    const existingUser = user || owner || admin || superAdmin;
     if (!existingUser) throw new ApiError('User not found', 404);
 
     // Check if user password matches
@@ -150,13 +152,16 @@ exports.forgotPassword = async (req, res, next) => {
   try {
     const user = await User.findOne({ email });
     const owner = await Owner.findOne({ email });
-    if (!user && !owner) throw new ApiError('User not found', 404);
+    const admin = await Admin.findOne({ email });
+    if (!user && !owner && !admin) throw new ApiError('User not found', 404);
     const resetCode = tokenService.generateVerificationCode();
     if (user) user.passwordResetCode = { code: resetCode, expiresAt: new Date(Date.now() + 10 * 60 * 1000) };
     if (owner) owner.passwordResetCode = { code: resetCode, expiresAt: new Date(Date.now() + 10 * 60 * 1000) };
+    if (admin) admin.passwordResetCode = { code: resetCode, expiresAt: new Date(Date.now() + 10 * 60 * 1000) };
 
     if (user) await user.save();
     if (owner) await owner.save();
+    if (admin) await admin.save();
     // Send password reset code
     await emailService.sendPasswordResetCode(email, resetCode);
 
@@ -177,8 +182,8 @@ exports.resetPassword = async (req, res, next) => {
 
     const user = await User.findOne({ email });
     const owner = await Owner.findOne({ email });
-
-    if (!user && !owner) throw new ApiError('User not found', 404);
+    const admin = await Admin.findOne({ email });
+    if (!user && !owner && !admin) throw new ApiError('User not found', 404);
     if (password !== confirmPassword) throw new ApiError('Passwords do not match', 400);
 
     if (user) {
@@ -194,7 +199,6 @@ exports.resetPassword = async (req, res, next) => {
         success: true,
         message: 'Password reset successful.'
       });
-
     }
 
     if (owner) {
@@ -212,6 +216,21 @@ exports.resetPassword = async (req, res, next) => {
       });
     }
 
+    if (admin) {
+      if (!admin.passwordResetCode || admin.passwordResetCode.code !== code || admin.passwordResetCode.expiresAt < new Date()) {
+        throw new ApiError('Invalid or expired reset code', 400);
+      }
+      admin.passwordResetCode = undefined;
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+      admin.password = hashedPassword;
+      await admin.save();
+      return res.status(200).json({
+        success: true,
+        message: 'Password reset successful.'
+      });
+    }
+
   } catch (err) {
     return next(err);
   }
@@ -223,12 +242,13 @@ exports.verifyCode = async (req, res, next) => {
   try {
     const user = await User.findOne({ email });
     const owner = await Owner.findOne({ email });
-    if (!user && !owner) throw new ApiError('User not found', 404);
+    const admin = await Admin.findOne({ email });
+    if (!user && !owner && !admin) throw new ApiError('User not found', 404);
     let valid = false;
     if (type === 'verification') {
-      valid = user?.verificationCode?.code === code || owner?.verificationCode?.code === code;
+      valid = user?.verificationCode?.code === code || owner?.verificationCode?.code === code || admin?.verificationCode?.code === code;
     } else if (type === 'reset') {
-      valid = user?.passwordResetCode?.code === code || owner?.passwordResetCode?.code === code;
+      valid = user?.passwordResetCode?.code === code || owner?.passwordResetCode?.code === code || admin?.passwordResetCode?.code === code;
     }
     if (!valid) throw new ApiError('Invalid or expired code', 400);
     return res.status(200).json({
@@ -246,7 +266,7 @@ exports.resendVerificationCode = async (req, res, next) => {
   try {
     let userOrOwner = await User.findOne({ email });
     if (!userOrOwner) userOrOwner = await Owner.findOne({ email });
-    if (!userOrOwner) userOrOwner = await TempUser.findOne({ email });
+    if (!userOrOwner) userOrOwner = await Admin.findOne({ email });
     if (!userOrOwner) throw new ApiError('User not found', 404);
     const code = tokenService.generateVerificationCode();
     userOrOwner.verificationCode = { code, expiresAt: new Date(Date.now() + 10 * 60 * 1000) };
