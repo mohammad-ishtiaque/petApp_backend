@@ -18,7 +18,6 @@ const adminSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    required: true
   },
   profilePic: {
     type: String
@@ -33,7 +32,7 @@ const adminSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['USER', 'ADMIN', 'OWNER', 'SUPER_ADMIN'],
+    enum: ['ADMIN', 'SUPER_ADMIN'],
     default: 'ADMIN'
   },
   verficationToken: {
