@@ -9,14 +9,12 @@ const upload = require('../../../utils/upload');
 
 exports.createBusiness = async (req, res, next) => {
     const ownerId = req.owner.id;
-    // console.log(ownerId);
-    // console.log(req.owner.id);
-    // console.log(req.files););
     const { businessName, businessType, website, address, moreInfo } = req.body;
     const { shopLogo, shopPic } = req.files;
     try {
         const owner = await Owner.findById(ownerId);
         if (!owner) throw new ApiError('Owner not found', 404);
+        if (owner.businesses && owner.businesses.length > 0) throw new ApiError('Only one business can be registered by one owner', 400);
         const business = new Business({
             ownerId,
             businessName,
@@ -28,8 +26,7 @@ exports.createBusiness = async (req, res, next) => {
             shopPic: shopPic ? shopPic.map(file => file.path) : []
         });
         await business.save();
-        owner.businesses = owner.businesses || [];
-        owner.businesses.push(business._id);
+        owner.businesses = [business._id];
         await owner.save();
         return res.status(201).json({
             success: true,

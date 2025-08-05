@@ -57,7 +57,7 @@ const ownerSchema = new mongoose.Schema({
     default: Date.now
   },
   bookings: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Booking' }],
-  businesses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Business' }]
+  businesses: { type: mongoose.Schema.Types.ObjectId, ref: 'Business' }
 });
 
 module.exports = mongoose.model('Owner', ownerSchema);

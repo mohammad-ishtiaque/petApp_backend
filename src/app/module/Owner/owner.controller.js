@@ -10,18 +10,26 @@ const Booking = require('../Booking/Booking');
 const asyncHandler = require('../../../utils/asyncHandler');
 const Pet = require('../Pet/Pet')
 
+
 exports.getOwnerDetails = asyncHnadler(async (req, res, next) => {
   const id = req.owner.id || req.owner._id;
-  // console.log(id);
+
   const owner = await Owner.findById(id).select('-password');
-  // console.log(owner);
   if (!owner) {
     return next(new ApiError('Owner not found', 404));
   }
+
+  const business = await Business.findOne({ ownerId: id });
+
+  const ownerDetails = {
+    ...owner.toObject(),
+    business
+  };
+
   res.status(200).json({
     success: true,
     message: 'Owner fetched successfully',
-    owner
+    ownerDetails
   });
 });
 
