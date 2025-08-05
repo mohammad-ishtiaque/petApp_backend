@@ -238,22 +238,17 @@ exports.resetPassword = async (req, res, next) => {
 
 // VERIFY CODE (for generic code verification, e.g. resend/validate)
 exports.verifyCode = async (req, res, next) => {
-  const { email, code, type } = req.body; // type: 'verification' or 'reset'
+  const { email, code } = req.body;
   try {
     const user = await User.findOne({ email });
     const owner = await Owner.findOne({ email });
     const admin = await Admin.findOne({ email });
     if (!user && !owner && !admin) throw new ApiError('User not found', 404);
-    let valid = false;
-    if (type === 'verification') {
-      valid = user?.verificationCode?.code === code || owner?.verificationCode?.code === code || admin?.verificationCode?.code === code;
-    } else if (type === 'reset') {
-      valid = user?.passwordResetCode?.code === code || owner?.passwordResetCode?.code === code || admin?.passwordResetCode?.code === code;
-    }
-    if (!valid) throw new ApiError('Invalid or expired code', 400);
+    const valid = user?.verificationCode?.code === code || owner?.verificationCode?.code === code || admin?.verificationCode?.code === code;
+    if (!valid) throw new ApiError('Invalid or expired verification code', 400);
     return res.status(200).json({
       success: true,
-      message: 'Code is valid.'
+      message: 'Verification code is valid.'
     });
   } catch (err) {
     return next(err);
