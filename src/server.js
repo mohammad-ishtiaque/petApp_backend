@@ -9,4 +9,3 @@ app.listen(PORT, HOST, () => {
   console.log(`Pet App Server is running on http://${HOST}:${PORT}`);
 });
 
-

@@ -43,16 +43,11 @@ exports.updateOwnerDetails = asyncHnadler(async (req, res, next) => {
     return next(new ApiError('Owner not found', 404));
   }
   owner.name = req.body.name;
-  owner.email = req.body.email;
   owner.phone = req.body.phone;
   owner.address = req.body.address;
-  owner.city = req.body.city;
-  owner.state = req.body.state;
-  owner.zipCode = req.body.zipCode;
-  owner.country = req.body.country;
   if (req.file) {
-    owner.ownerPic = req.file.path; // upload the new image
-    await deleteFile(owner.ownerPic); // delete the old image 
+    owner.profilePic = req.file.path; // upload the new image
+    await deleteFile(owner.profilePic); // delete the old image 
   }
   if (req.body.password) {
     owner.password = req.body.password;

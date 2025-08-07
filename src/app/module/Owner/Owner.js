@@ -3,13 +3,13 @@ const mongoose = require('mongoose');
 const ownerSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: true,
+    // required: true,
     trim: true
   },
   email: { 
     type: String, 
     unique: true, 
-    required: true, 
+    required: true,
     trim: true
     },
   password: {   
@@ -18,7 +18,10 @@ const ownerSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    required: true
+    // required: true
+  },
+  address: {
+    type: String
   },
   profilePic: {
     type: String
