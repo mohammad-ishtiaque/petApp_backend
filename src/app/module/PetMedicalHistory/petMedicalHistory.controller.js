@@ -26,21 +26,37 @@ exports.createPetMedicalHistory = asyncHandler(async (req, res) => {
     
 });
 
-exports.getPetMedicalHistoryByTreatmentCategory = asyncHandler(async (req, res) => {
+exports.getPetMedicalHistoryByTreatmentStatus = asyncHandler(async (req, res) => {
     const petId = req.params.petId;
-    const treatmentCategory = req.query.treatmentCategory;
+    const treatmentStatus = req.query.treatmentStatus;
+
+    // Pagination values from query params
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
     const petMedicalHistory = await PetMedicalHistory.find({ petId });
     if (!petMedicalHistory) throw new ApiError('Pet Medical History not found', 404);
-    // console.log(petMedicalHistory.treatmentCategory)
-    const petMedicalHistoryByTreatmentCategory = await PetMedicalHistory.find({ treatmentCategory: treatmentCategory?.toUpperCase() });
-    // console.log(petMedicalHistoryByTreatmentCategory)
+
+    const petMedicalHistoryByTreatmentStatus = await PetMedicalHistory
+        .find({ treatmentStatus: treatmentStatus?.toUpperCase() })
+        .skip(skip)
+        .limit(limit);
+
+    // Count total matching docs for pagination info
+    const total = await PetMedicalHistory.countDocuments({ treatmentStatus: treatmentStatus?.toUpperCase() });
 
     res.status(200).json({
         success: true,
         message: 'Pet Medical History retrieved successfully',
-        petMedicalHistoryByTreatmentCategory
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        totalRecords: total,
+        petMedicalHistoryByTreatmentStatus
     });
 });
+
 
 exports.updatePetMedicalHistory = asyncHandler(async (req, res) => {
     const treatmentId = req.params.treatmentId;

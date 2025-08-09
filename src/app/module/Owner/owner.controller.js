@@ -20,7 +20,6 @@ exports.getOwnerDetails = asyncHnadler(async (req, res, next) => {
   }
 
   const business = await Business.findOne({ ownerId: id });
-
   const ownerDetails = {
     ...owner.toObject(),
     business
@@ -42,15 +41,12 @@ exports.updateOwnerDetails = asyncHnadler(async (req, res, next) => {
   if (!owner) {
     return next(new ApiError('Owner not found', 404));
   }
-  owner.name = req.body.name;
-  owner.phone = req.body.phone;
-  owner.address = req.body.address;
+  owner.name = req.body.name || owner.name;
+  owner.phone = req.body.phone || owner.phone;
+  owner.address = req.body.address || owner.address;
   if (req.file) {
     owner.profilePic = req.file.path; // upload the new image
     await deleteFile(owner.profilePic); // delete the old image 
-  }
-  if (req.body.password) {
-    owner.password = req.body.password;
   }
   await owner.save();
   res.status(200).json({
@@ -187,3 +183,17 @@ exports.getBookedPetsByOwner = async (req, res, next) => {
     });
   }
 };
+
+exports.gtPetDetailsByPetId = asyncHandler(async (req, res) => {
+  const petId = req.params.id || req.params._id;
+  const pet = await Pet.findById(petId);
+  if (!pet) {
+    throw new ApiError('Pet not found', 404);
+  }
+  res.status(200).json({
+    success: true,
+    message: 'Pet fetched successfully',
+    pet
+  });
+});
+
