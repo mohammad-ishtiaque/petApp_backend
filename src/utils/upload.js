@@ -3,15 +3,16 @@ const path = require('path');
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads')
+    cb(null, 'uploads');
   },
   filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname)
+    // Just keep filename generation as is
+    cb(null, Date.now() + '-' + file.originalname);
   }
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = [ 'image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp'];
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp'];
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
@@ -19,7 +20,7 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({ 
+const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
@@ -27,4 +28,42 @@ const upload = multer({
   }
 });
 
-module.exports = upload;
+// Middleware wrapper to normalize the file path after upload
+const uploadMiddleware = (fieldName) => (req, res, next) => {
+  const multerMiddleware = upload.single(fieldName);
+
+  multerMiddleware(req, res, (err) => {
+    if (err) return next(err);
+
+    // If a file was uploaded, normalize the path
+    if (req.file && req.file.path) {
+      req.file.path = req.file.path.replace(/\\/g, '/');
+    }
+
+    next();
+  });
+};
+
+
+const uploadArrayMiddleware = (fieldName, maxCount) => (req, res, next) => {
+  const multerMiddleware = upload.array(fieldName, maxCount);
+
+  multerMiddleware(req, res, (err) => {
+    if (err) return next(err);
+
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        if (file.path) {
+          file.path = file.path.replace(/\\/g, '/');  // normalize backslashes to forward slashes
+        }
+      });
+    }
+
+    next();
+  });
+};
+
+module.exports = {
+  uploadMiddleware,
+  uploadArrayMiddleware
+};

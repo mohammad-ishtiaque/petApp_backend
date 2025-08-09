@@ -91,16 +91,27 @@ exports.deletePetMedicalHistory = asyncHandler(async (req, res) => {
 
 exports.getPetMedicalHistoryByPetId = asyncHandler(async (req, res) => {
     const petId = req.params.petId;
-    // const treatmentCategory = req.query.treatmentCategory;
-    const petMedicalHistory = await PetMedicalHistory.find({ petId });
+
+    // Pagination values from query params
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const petMedicalHistory = await PetMedicalHistory.find({ petId })
+        .skip(skip)
+        .limit(limit);
+
     if (!petMedicalHistory) throw new ApiError('Pet Medical History not found', 404);
-    // console.log(petMedicalHistory.treatmentCategory)
-    // const petMedicalHistoryByTreatmentCategory = await PetMedicalHistory.find({ treatmentCategory: treatmentCategory.toUpperCase() });
-    // console.log(petMedicalHistoryByTreatmentCategory)
+
+    const total = await PetMedicalHistory.countDocuments({ petId });
 
     res.status(200).json({
         success: true,
         message: 'Pet Medical History retrieved successfully',
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        totalRecords: total,
         petMedicalHistory
     });
 });

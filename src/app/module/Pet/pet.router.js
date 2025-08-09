@@ -8,14 +8,13 @@ const {
     getAllPets
 } = require('./pet.controller');
 const { authenticateUser } = require('../../middleware/auth.middleware');
-const upload = require('../../../utils/upload');
+const { uploadArrayMiddleware } = require('../../../utils/upload');
 
 
 
-
-router.post('/create', authenticateUser, upload.array('petPhoto', 2), createPet);
+router.post('/create', authenticateUser, uploadArrayMiddleware('petPhoto', 2), createPet);
 router.get('/get/:petId', authenticateUser, getPet);
-router.put('/update/:petId', authenticateUser, upload.array('petPhoto', 2), updatePet);
+router.put('/update/:petId', authenticateUser, uploadArrayMiddleware('petPhoto', 2), updatePet);
 router.delete('/delete/:petId', authenticateUser, deletePet);
 router.get('/get', authenticateUser, getAllPets);
 

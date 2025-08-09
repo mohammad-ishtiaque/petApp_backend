@@ -9,6 +9,45 @@ const connectDB = require('./config/db');
 // Create Express app
 const app = express();
 
+const path = require('path');
+const fs = require('fs');
+// Serve static files from the uploads directory in the project root
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
+// Test file check endpoint
+// app.get('/test-upload-file', (req, res) => {
+//   const uploadsDir = path.join(__dirname, '..', 'uploads'); // Go up one level to project root
+//   const testFile = path.join(uploadsDir, '1754380067076-age1.jpg');
+  
+//   // Create uploads directory if it doesn't exist{"exists":true,"message":"File exists on server","path":"C:\\Users\\arifi\\OneDrive\\Documents\\All Projects\\petApp_backend\\uploads\\1754380067076-age1.jpg"}
+//   if (!fs.existsSync(uploadsDir)) {
+//     fs.mkdirSync(uploadsDir, { recursive: true });
+//     return res.status(404).json({ 
+//       exists: false, 
+//       message: 'Uploads directory did not exist. Created it.',
+//       path: uploadsDir
+//     });
+//   }
+  
+//   // Check if file exists
+//   fs.access(testFile, fs.constants.F_OK, (err) => {
+//     if (err) {
+//       return res.status(404).json({ 
+//         exists: false, 
+//         message: 'File not found',
+//         path: testFile,
+//         currentDirectory: process.cwd(),
+//         directoryContents: fs.readdirSync(uploadsDir)
+//       });
+//     }
+//     res.status(200).json({ 
+//       exists: true, 
+//       message: 'File exists on server',
+//       path: testFile
+//     });
+//   });
+// });
+
 dotenv.config();
 
 // Middleware
