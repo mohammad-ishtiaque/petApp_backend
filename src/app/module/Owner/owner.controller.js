@@ -33,28 +33,37 @@ exports.getOwnerDetails = asyncHnadler(async (req, res, next) => {
 });
 
 
-exports.updateOwnerDetails = asyncHnadler(async (req, res, next) => {
+exports.updateOwnerProfile = async (req, res, next) => {
+  const ownerId = req.owner.id || req.owner._id;
+  const { name, address, phone } = req.body;
 
-  const id = req.owner.id || req.owner._id;
+  try {
+    const owner = await Owner.findById(ownerId).select('-password');
+    if (!owner) throw new ApiError('Owner not found', 404);
 
-  const owner = await Owner.findById(id);
-  if (!owner) {
-    return next(new ApiError('Owner not found', 404));
+    // Handle profilePic update
+    if (req.file) {
+      // Delete old profile picture if it exists
+      if (owner.profilePic) {
+        await deleteFile(path.join(__dirname, '..', '..', '..', owner.profilePic));
+      }
+      // Update with new profile picture path (normalize path)
+      owner.profilePic = req.file.path.replace(/\\/g, '/');
+    }
+
+    owner.name = name || owner.name;
+    owner.address = address || owner.address;
+    owner.phone = phone || owner.phone;
+    await owner.save();
+    return res.status(200).json({
+      success: true,
+      message: 'Owner profile updated successfully',
+      owner
+    });
+  } catch (err) {
+    throw new ApiError(err.message, 500);
   }
-  owner.name = req.body.name || owner.name;
-  owner.phone = req.body.phone || owner.phone;
-  owner.address = req.body.address || owner.address;
-  if (req.file) {
-    owner.profilePic = req.file.path; // upload the new image
-    await deleteFile(owner.profilePic); // delete the old image 
-  }
-  await owner.save();
-  res.status(200).json({
-    success: true,
-    message: 'Owner updated successfully',
-    owner
-  });
-});
+};
 
 exports.deleteOwner = asyncHnadler(async (req, res, next) => {
   const id = req.owner.id || req.owner._id;

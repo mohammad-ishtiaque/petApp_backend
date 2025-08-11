@@ -3,7 +3,8 @@ const Pet = require('../Pet/Pet');
 const { ApiError } = require('../../../errors/errorHandler');
 const bcrypt = require('bcrypt');
 const Booking = require('../Booking/Booking');
-
+const path = require('path');
+const { deleteFile } = require('../../../utils/unLinkFiles');
 
 exports.getUserProfile = async (req, res, next) => {
     try {
@@ -21,22 +22,34 @@ exports.getUserProfile = async (req, res, next) => {
 };
 
 exports.updateUserProfile = async (req, res, next) => {
+    const userId = req.params.id;
+    const { name, address, phone } = req.body;
+
     try {
-        const user = await User.findById(req.user.id).select('-password');
+        const user = await User.findById(userId).select('-password');
         if (!user) throw new ApiError('User not found', 404);
-        user.name = req.body.name || user.name;
-        user.address = req.body.address || user.address;
-        user.phone = req.body.phone || user.phone;
+
+        // Handle profilePic update
         if (req.file) {
-            user.profilePic = req.file.path;
+            // Delete old profile picture if it exists
+            if (user.profilePic) {
+                await deleteFile(path.join(__dirname, '..', '..', '..', user.profilePic));
+            }
+            // Update with new profile picture path (normalize path)
+            user.profilePic = req.file.path.replace(/\\/g, '/');
         }
+
+        user.name = name || user.name;
+        user.address = address || user.address;
+        user.phone = phone || user.phone;
         await user.save();
         return res.status(200).json({
             success: true,
+            message: 'User profile updated successfully',
             user
         });
     } catch (err) {
-        return next(err);
+        throw new ApiError(err.message, 500);
     }
 };
 

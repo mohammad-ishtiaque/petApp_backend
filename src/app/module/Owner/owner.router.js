@@ -1,12 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { getOwnerDetails, updateOwnerDetails, deleteOwner, getOwnerBusinesses, getAllBookingsByOwner, updateBookingStatus, getBookingsByServiceType, getBookedPetsByOwner, gtPetDetailsByPetId } = require('./owner.controller');
+const { getOwnerDetails, updateOwnerProfile, deleteOwner, getOwnerBusinesses, getAllBookingsByOwner, updateBookingStatus, getBookingsByServiceType, getBookedPetsByOwner, gtPetDetailsByPetId } = require('./owner.controller');
 const { authenticateOwner } = require('../../middleware/auth.middleware');
 const upload = require('../../../utils/upload');
-const { uploadMiddleware } = require('../../../utils/upload');
 
 router.get('/get-owner-details', authenticateOwner, getOwnerDetails);
-router.put('/update-owner-details', authenticateOwner, uploadMiddleware('profilePic'), updateOwnerDetails);
+router.put('/update-owner-details', authenticateOwner, upload.single('profilePic'), updateOwnerProfile);
 router.delete('/delete-owner', authenticateOwner, deleteOwner);
 router.get('/get-owner-businesses', authenticateOwner, getOwnerBusinesses);
 router.get('/get-bookings-by-owner', authenticateOwner, getAllBookingsByOwner);
