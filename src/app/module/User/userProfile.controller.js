@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt');
 const Booking = require('../Booking/Booking');
 const path = require('path');
 const { deleteFile } = require('../../../utils/unLinkFiles');
+const Owner = require('../Owner/Owner');
 
 exports.getUserProfile = async (req, res, next) => {
     try {
@@ -77,47 +78,71 @@ exports.getMyPets = async (req, res, next) => {
 //change password
 //delete account
 
-exports.changePassword = async (req, res, next) => { // start of change password function
+exports.changePassword = async (req, res, next) => {
     try {
-        const user = await User.findById(req.user.id).select('-password'); // get user from database
-        // get old, new and confirm password from request body
         const { oldPassword, newPassword, confirmPassword } = req.body;
-        if (!user) throw new ApiError('User not found', 404); // if user does not exist, throw error
-        if (newPassword !== confirmPassword) throw new ApiError('Confirm password do not match', 400); // if new and confirm password do not match, throw error
-        if (oldPassword === newPassword) throw new ApiError('New password cannot be the same as the old password', 400); // if new password is the same as old password, throw error
-        const isMatch = await bcrypt.compare(oldPassword, user.password); // compare old password with stored password in database
-        if (!isMatch) throw new ApiError('Invalid old password', 401); // if old password is invalid, throw error
-        const salt = await bcrypt.genSalt(10);   
-        const hashedPassword = await bcrypt.hash(newPassword, salt);
-        user.password = hashedPassword; // update user password
-        await user.save(); // save user to database
-        return res.status(200).json({ // return success message
+
+        const userId = req?.user?.id || req?.user?._id;
+        // console.log(userId)
+
+        // Try to find either User or Owner
+        let account = null;
+        account = await User.findById(userId) || await Owner.findById(userId);
+
+        if (!account) throw new ApiError('Account not found', 404);
+
+        if (newPassword !== confirmPassword)
+            throw new ApiError('Confirm password does not match', 400);
+
+        if (oldPassword === newPassword)
+            throw new ApiError('New password cannot be the same as old password', 400);
+
+        // Compare old password
+        const isMatch = await bcrypt.compare(oldPassword, account.password);
+        if (!isMatch) throw new ApiError('Invalid old password', 401);
+
+        // Hash and update
+        const salt = await bcrypt.genSalt(10);
+        account.password = await bcrypt.hash(newPassword, salt);
+
+        await account.save();
+
+        return res.status(200).json({
             success: true,
             message: 'Password changed successfully'
         });
+
     } catch (err) {
-        return next(err); // catch any error and pass it to next middleware
+        return next(err);
     }
 };
 
 exports.deleteAccount = async (req, res, next) => {
     try {
-        const user = await User.findById(req.user.id); // get user from database
-        if (!user) throw new ApiError('User not found', 404); // if user does not exist, throw error
-        await user.deleteOne(); // delete user from database
-        return res.status(200).json({ // return success message
+        const userId = req?.user?.id || req?.user?._id;
+
+        let account = null;
+        account = await User.findById(userId) || await Owner.findById(userId);
+
+        if (!account) throw new ApiError('Account not found', 404);
+
+        await account.deleteOne();
+
+        return res.status(200).json({
             success: true,
             message: 'Account deleted successfully'
         });
+
     } catch (err) {
-        return next(err); // catch any error and pass it to next middleware
+        return next(err);
     }
 };
 
 
+
 exports.getMyAppointment = async(req, res, next) => {
     try {
-        const userId = req.user.id || req.user._id;
+        const userId = req?.user?.id || req?.user?._id;
         const booking = await Booking.find({ userId })
         return res.status(200).json({
             success: true,

@@ -9,18 +9,22 @@ exports.createService = asyncHandler(async (req, res, next) => {
         // console.log(ownerId);
         const business = await Business.findOne({ ownerId });
         const businessId = business._id;
-       
+
         const servicesImages = req.files ? req.files.map(file => file.path) : [];
-        const { serviceType, serviceName, location, openingTime, closingTime, offDay,providings, websiteLink } = req.body;
+        const { serviceType, serviceName, location, openingTime, closingTime, offDay, providings, websiteLink } = req.body;
+
+        const existingService = await Service.findOne({ businessId, serviceType: serviceType.toUpperCase() });
+        if (existingService) throw new ApiError('An owner cannot create one service with the same service type', 400);
+
         const service = new Service({
-            serviceType,
-            serviceName,
-            location,
-            openingTime,
-            closingTime,
-            offDay,
-            websiteLink,
-            providings,
+            serviceType: serviceType.trim().toUpperCase(),
+            serviceName: serviceName.trim(),
+            location: location.trim(),
+            openingTime: openingTime.trim(),
+            closingTime: closingTime.trim(),
+            offDay: offDay.trim(),
+            websiteLink: websiteLink.trim(),
+            providings: providings.map(providing => providing.trim()),
             servicesImages,
             businessId
         });
@@ -41,11 +45,23 @@ exports.createService = asyncHandler(async (req, res, next) => {
 
 
 exports.getAllServices = asyncHandler(async (req, res, next) => {
-    const ownerId = req.owner.id;
+    const ownerId = req.owner?.id || req.owner?._id;
     const business = await Business.findOne({ ownerId });
-    const businessId = business._id;
+
+    const businessId = business?._id;
+    const shopLogo = business?.shopLogo;
+    // console.log(businessId);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
     try {
-        const services = await Service.find({ businessId });
+        const services = await Service.find({ businessId }).skip(startIndex).limit(limit);
+
+        services.forEach(service => {
+            service.shopLogo = shopLogo;
+            service.phone = business.phone;
+        });
 
         // console.log(businessDetails);
         if (!services) throw new ApiError('Services not found', 404);
@@ -53,7 +69,12 @@ exports.getAllServices = asyncHandler(async (req, res, next) => {
         return res.status(200).json({
             success: true,
             message: 'Services fetched successfully',
-            services
+            services,
+            total: await Service.countDocuments({ businessId }),
+            currentPage: page,
+            pageSize: limit,
+            startIndex,
+            endIndex
         });
     } catch (err) {
         throw new ApiError(err.message, 500);
@@ -62,7 +83,17 @@ exports.getAllServices = asyncHandler(async (req, res, next) => {
 
 exports.updateService = asyncHandler(async (req, res, next) => {
     try {
-        const service = await Service.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const service = await Service.findByIdAndUpdate(req.params.id,
+            { 
+                serviceName: req.body.serviceName, 
+                location: req.body.location, 
+                openingTime: req.body.openingTime, 
+                closingTime: req.body.closingTime, 
+                offDay: req.body.offDay, 
+                websiteLink: req.body.websiteLink, 
+                providings: req.body.providings 
+            }, 
+            { new: true });
         if (!service) throw new ApiError('Service not found', 404);
         res.status(200).json({
             success: true,
@@ -77,7 +108,6 @@ exports.updateService = asyncHandler(async (req, res, next) => {
 exports.deleteService = asyncHandler(async (req, res, next) => {
     try {
         const serviceId = req.params.id;
-        console.log(serviceId);
         const service = await Service.findByIdAndUpdate(serviceId);
         if (!service) throw new ApiError('Service not found', 404);
         const business = await Business.findByIdAndUpdate(service.businessId, { $pull: { services: serviceId } });
@@ -98,10 +128,12 @@ exports.getServicesById = asyncHandler(async (req, res, next) => {
     try {
         const service = await Service.findById(req.params.serviceId);
         if (!service) throw new ApiError('Service not found', 404);
+        const shopLogo = await Business.findById(service.businessId);
+        service.shopLogo = shopLogo;
         res.status(200).json({
             success: true,
             message: 'Service fetched successfully',
-            service
+            service,
         });
     } catch (err) {
         throw new ApiError(err.message, 500);

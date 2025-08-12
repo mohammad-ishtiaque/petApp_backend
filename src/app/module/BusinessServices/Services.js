@@ -35,7 +35,12 @@ const serviceSchema = new mongoose.Schema({
     websiteLink: {
         type: String,
     },
-
+    shopLogo: {
+        type: String,
+    },
+    phone: {
+        type: String,
+    },
     providings: [
         {
             type: String,

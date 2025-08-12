@@ -55,8 +55,18 @@ exports.createBusiness = async (req, res, next) => {
 exports.getBusiness = async (req, res, next) => {
     const ownerId = req.owner.id;
     try {
-        const business = await Business.find({ ownerId });
+        const business = await Business.findOne({ ownerId });
         if (!business) throw new ApiError('Business not found', 404);
+        
+        const serviceIds = business.services;
+        const businessServices = await BusinessServices.find({ _id: { $in: serviceIds } });
+        const servicesType = businessServices.map(service => service.serviceType);
+        // console.log(servicesType);
+        business.servicesType = servicesType;
+        
+        
+        await business.save();
+
         return res.status(200).json({
             success: true,
             message: 'Business fetched successfully',
@@ -157,14 +167,14 @@ exports.deleteBusiness = async (req, res, next) => {
 exports.getAllBusiness = async (req, res, next) => {
     try {
         const business = await Business.find();
-        if (!business) throw new ApiError('Business not found', 404);
+        if (!business) throw new ApiError('Business not found', 404);     
         return res.status(200).json({
             success: true,
             message: 'Business fetched successfully',
             business
         });
     } catch (err) {
-        throw new ApiError(err.message, 500);
+        throw new ApiError(err.message, 500);   
     }
 };
 

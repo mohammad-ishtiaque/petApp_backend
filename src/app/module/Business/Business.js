@@ -29,6 +29,9 @@ const businessSchema = new mongoose.Schema({
     shopPic: {
       type: [String],
     },
+    servicesType: {
+        type: [String],
+    },
     advertisement: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Advertisement'
