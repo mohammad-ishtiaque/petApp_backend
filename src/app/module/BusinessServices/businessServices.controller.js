@@ -2,6 +2,9 @@ const Service = require('./Services');
 const Business = require('../Business/Business');
 const { ApiError } = require('../../../errors/errorHandler');
 const asyncHandler = require('../../../utils/asyncHandler');
+const path = require('path');
+const fs = require('fs');
+const {deleteFile} = require('../../../utils/unLinkFiles');
 
 exports.createService = asyncHandler(async (req, res, next) => {
     try {
@@ -10,21 +13,21 @@ exports.createService = asyncHandler(async (req, res, next) => {
         const business = await Business.findOne({ ownerId });
         const businessId = business._id;
 
-        const servicesImages = req.files ? req.files.map(file => file.path) : [];
+        const servicesImages = req.files ? (Array.isArray(req.files) ? req.files.map(file => file.path) : [req.files.path]) : [];
         const { serviceType, serviceName, location, openingTime, closingTime, offDay, providings, websiteLink, phone } = req.body;
 
         const existingService = await Service.findOne({ businessId, serviceType: serviceType.toUpperCase() });
         if (existingService) throw new ApiError('An owner cannot create one service with the same service type', 400);
 
         const service = new Service({
-            serviceType: serviceType.trim().toUpperCase(),
-            serviceName: serviceName.trim(),
-            location: location.trim(),
-            openingTime: openingTime.trim(),
-            closingTime: closingTime.trim(),
-            offDay: offDay.trim(),
-            websiteLink: websiteLink.trim(),
-            providings: providings.map(providing => providing.trim()),
+            serviceType: serviceType?.trim().toUpperCase(),
+            serviceName: serviceName?.trim(),
+            location: location?.trim(),
+            openingTime: openingTime?.trim(),
+            closingTime: closingTime?.trim(),
+            offDay: offDay?.trim(),
+            websiteLink: websiteLink?.trim(),
+            providings: Array.isArray(providings) ? providings.map(providing => providing.trim()) : [providings.trim()],
             phone,
             servicesImages,
             businessId
@@ -81,22 +84,40 @@ exports.getAllServices = asyncHandler(async (req, res, next) => {
     }
 });
 
-exports.updateService = asyncHandler(async (req, res, next) => {
+exports.updateService = async (req, res, next) => {
+    const serviceId = req.params.id;
+    const { serviceName, location, openingTime, closingTime, offDay, websiteLink, providings, phone } = req.body;
+
     try {
-        const service = await Service.findByIdAndUpdate(req.params.id,
-            { 
-                serviceName: req.body.serviceName, 
-                location: req.body.location, 
-                openingTime: req.body.openingTime, 
-                closingTime: req.body.closingTime, 
-                offDay: req.body.offDay, 
-                websiteLink: req.body.websiteLink, 
-                providings: req.body.providings ,
-                phone: req.body.phone
-            }, 
-            { new: true });
+        const service = await Service.findById(serviceId);
         if (!service) throw new ApiError('Service not found', 404);
-        res.status(200).json({
+
+        // Handle serviceImages update
+        if (req.files && req.files['servicesImages']) {
+            // Delete old service pictures if they exist
+            if (service.servicesImages && service.servicesImages.length > 0) {
+                await Promise.all(
+                    service.servicesImages.map(file =>
+                        deleteFile(path.join(__dirname, '..', '..', '..', file))
+                    )
+                );
+            }
+            // Add new service pictures (normalize paths)
+            service.servicesImages = req.files['servicesImages'].map(file => file.path.replace(/\\/g, '/'));
+        }
+
+        service.serviceName = serviceName;
+        service.location = location;
+        service.openingTime = openingTime;
+        service.closingTime = closingTime;
+        service.offDay = offDay;
+        service.websiteLink = websiteLink;
+        service.providings = providings;
+        service.phone = phone;
+
+        await service.save();
+
+        return res.status(200).json({
             success: true,
             message: 'Service updated successfully',
             service
@@ -104,7 +125,7 @@ exports.updateService = asyncHandler(async (req, res, next) => {
     } catch (err) {
         throw new ApiError(err.message, 500);
     }
-});
+};
 
 exports.deleteService = asyncHandler(async (req, res, next) => {
     try {
