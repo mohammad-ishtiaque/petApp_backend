@@ -11,7 +11,7 @@ exports.createService = asyncHandler(async (req, res, next) => {
         const businessId = business._id;
 
         const servicesImages = req.files ? req.files.map(file => file.path) : [];
-        const { serviceType, serviceName, location, openingTime, closingTime, offDay, providings, websiteLink } = req.body;
+        const { serviceType, serviceName, location, openingTime, closingTime, offDay, providings, websiteLink, phone } = req.body;
 
         const existingService = await Service.findOne({ businessId, serviceType: serviceType.toUpperCase() });
         if (existingService) throw new ApiError('An owner cannot create one service with the same service type', 400);
@@ -25,6 +25,7 @@ exports.createService = asyncHandler(async (req, res, next) => {
             offDay: offDay.trim(),
             websiteLink: websiteLink.trim(),
             providings: providings.map(providing => providing.trim()),
+            phone,
             servicesImages,
             businessId
         });
@@ -60,7 +61,6 @@ exports.getAllServices = asyncHandler(async (req, res, next) => {
 
         services.forEach(service => {
             service.shopLogo = shopLogo;
-            service.phone = business.phone;
         });
 
         // console.log(businessDetails);
@@ -91,7 +91,8 @@ exports.updateService = asyncHandler(async (req, res, next) => {
                 closingTime: req.body.closingTime, 
                 offDay: req.body.offDay, 
                 websiteLink: req.body.websiteLink, 
-                providings: req.body.providings 
+                providings: req.body.providings ,
+                phone: req.body.phone
             }, 
             { new: true });
         if (!service) throw new ApiError('Service not found', 404);

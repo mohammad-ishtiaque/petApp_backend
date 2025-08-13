@@ -74,6 +74,7 @@ app.use('/api/pet-medical-history', require('./app/module/PetMedicalHistory/PetM
 app.use('/api/booking', require('./app/module/Booking/booking.router'));
 app.use('/api/review', require('./app/module/Review/review.router'))
 app.use('/api/dashboard', require('./app/module/Dashboard/dashboard.router'));
+app.use('/api/faq', require('./app/module/Dashboard/Faq/faq.router'));
 app.use('/api/admin', require('./app/module/Admin/admin.router'));
 // app.use('/api/auth', require('./app/module/Auth/auth.routes'));
 // app.use('/api/users', require('./app/module/User/user.routes'));
