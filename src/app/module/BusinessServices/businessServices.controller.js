@@ -4,7 +4,7 @@ const { ApiError } = require('../../../errors/errorHandler');
 const asyncHandler = require('../../../utils/asyncHandler');
 const path = require('path');
 const fs = require('fs');
-const {deleteFile} = require('../../../utils/unLinkFiles');
+const { deleteFile } = require('../../../utils/unLinkFiles');
 
 exports.createService = asyncHandler(async (req, res, next) => {
     try {
@@ -13,7 +13,7 @@ exports.createService = asyncHandler(async (req, res, next) => {
         const business = await Business.findOne({ ownerId });
         const businessId = business._id;
 
-        const servicesImages = req.files ? (Array.isArray(req.files) ? req.files.map(file => file.path) : [req.files.path]) : [];
+        const servicesImages = req.file ? req.file.path : null;
         const { serviceType, serviceName, location, openingTime, closingTime, offDay, providings, websiteLink, phone } = req.body;
 
         const existingService = await Service.findOne({ businessId, serviceType: serviceType.toUpperCase() });
@@ -86,34 +86,30 @@ exports.getAllServices = asyncHandler(async (req, res, next) => {
 
 exports.updateService = async (req, res, next) => {
     const serviceId = req.params.id;
+
     const { serviceName, location, openingTime, closingTime, offDay, websiteLink, providings, phone } = req.body;
 
     try {
         const service = await Service.findById(serviceId);
         if (!service) throw new ApiError('Service not found', 404);
 
-        // Handle serviceImages update
-        if (req.files && req.files['servicesImages']) {
-            // Delete old service pictures if they exist
-            if (service.servicesImages && service.servicesImages.length > 0) {
-                await Promise.all(
-                    service.servicesImages.map(file =>
-                        deleteFile(path.join(__dirname, '..', '..', '..', file))
-                    )
-                );
+        if (req.file) {
+            // Delete old profile picture if it exists
+            if (service.servicesImages) {
+                await deleteFile(path.join(__dirname, '..', '..', '..', service.servicesImages));
             }
-            // Add new service pictures (normalize paths)
-            service.servicesImages = req.files['servicesImages'].map(file => file.path.replace(/\\/g, '/'));
+            // Update with new profile picture path (normalize path)
+            service.servicesImages = req.file.path.replace(/\\/g, '/');
         }
 
-        service.serviceName = serviceName;
-        service.location = location;
-        service.openingTime = openingTime;
-        service.closingTime = closingTime;
-        service.offDay = offDay;
-        service.websiteLink = websiteLink;
-        service.providings = providings;
-        service.phone = phone;
+        service.serviceName = serviceName || service.serviceName;
+        service.location = location || service.location;
+        service.openingTime = openingTime || service.openingTime;
+        service.closingTime = closingTime || service.closingTime;
+        service.offDay = offDay || service.offDay;
+        service.websiteLink = websiteLink || service.websiteLink;
+        service.providings = providings || service.providings;
+        service.phone = phone || service.phone;
 
         await service.save();
 

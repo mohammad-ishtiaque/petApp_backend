@@ -78,6 +78,7 @@ app.use('/api/faq', require('./app/module/Dashboard/Faq/faq.router'));
 app.use('/api/admin', require('./app/module/Admin/admin.router'));
 app.use('/api/privacy', require('./app/module/Dashboard/Privacy/privacy.router'));
 app.use('/api/help', require('./app/module/Dashboard/Help/help.router'));
+app.use('/api/terms-condition', require('./app/module/Dashboard/TermsCondition/termsCondition.router'));
 // app.use('/api/auth', require('./app/module/Auth/auth.routes'));
 // app.use('/api/users', require('./app/module/User/user.routes'));
 // app.use('/api/owners', require('./app/module/Owner/owner.routes'));

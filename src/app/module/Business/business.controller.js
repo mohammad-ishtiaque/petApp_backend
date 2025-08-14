@@ -101,7 +101,7 @@ exports.updateBusiness = async (req, res, next) => {
     try {
         const business = await Business.findById(businessId);
         if (!business) throw new ApiError('Business not found', 404);
-        
+        ll
         // Handle shopLogo update
         if (req.files && req.files['shopLogo']) {
             // Delete old logo if it exists

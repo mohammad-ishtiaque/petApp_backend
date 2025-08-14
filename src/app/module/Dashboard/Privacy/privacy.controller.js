@@ -20,14 +20,14 @@ exports.createPrivacy = asyncHandler(async (req, res, next) => {
 });
 
 
-exports.getAllPrivacies = asyncHandler(async (req, res, next) => {
+exports.getPrivacy = asyncHandler(async (req, res, next) => {
     try {
-        const privacies = await Privacy.find();
-        if (!privacies) throw new ApiError('Privacies not found', 404);
+        const privacy = await Privacy.findOne();
+        if (!privacy) throw new ApiError('Privacy not found', 404);
         res.status(200).json({
             success: true,
-            message: 'Privacies fetched successfully',
-            privacies
+            message: 'Privacy fetched successfully',
+            privacy
         });
     } catch (err) {
         throw new ApiError(err.message, 500);
@@ -65,17 +65,17 @@ exports.deletePrivacy = asyncHandler(async (req, res, next) => {
 });
 
 
-exports.getPrivacyById = asyncHandler(async (req, res, next) => {
-    try {
-        const privacy = await Privacy.findById(req.params.id);
-        if (!privacy) throw new ApiError('Privacy not found', 404);
-        res.status(200).json({
-            success: true,
-            message: 'Privacy fetched successfully',
-            privacy
-        });
-    } catch (err) {
-        throw new ApiError(err.message, 500);
-    }
-});
+// exports.getPrivacyById = asyncHandler(async (req, res, next) => {
+//     try {
+//         const privacy = await Privacy.findById(req.params.id);
+//         if (!privacy) throw new ApiError('Privacy not found', 404);
+//         res.status(200).json({
+//             success: true,
+//             message: 'Privacy fetched successfully',
+//             privacy
+//         });
+//     } catch (err) {
+//         throw new ApiError(err.message, 500);
+//     }
+// });
     

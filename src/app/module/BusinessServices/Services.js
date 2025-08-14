@@ -41,14 +41,9 @@ const serviceSchema = new mongoose.Schema({
     phone: {
         type: String,
     },
-    providings: [
-        {
-            type: String,
-            trim: true
-        }
-    ],
+    providings: [{type: String}],
 
-    servicesImages: [{ type: String }],
+    servicesImages: { type: String },
 
     bookings: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Booking' }],
 

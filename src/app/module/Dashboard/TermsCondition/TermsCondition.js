@@ -6,6 +6,6 @@ const dataSchema = new mongoose.Schema({
     }
 }, { timestamps: true })
 
-const Privacy = mongoose.model('Privacy', dataSchema);
+const TermsCondition = mongoose.model('TermsCondition', dataSchema);
 
-module.exports = Privacy;
+module.exports = TermsCondition;

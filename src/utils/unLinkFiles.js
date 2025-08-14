@@ -10,7 +10,7 @@ const deleteFile = async (filePath) => {
       return;
     }
 
-    const uploadsPath = path.join(__dirname, '..', '..', 'uploads');
+    const uploadsPath = path.join(__dirname, '..', '..', '..', 'uploads');
     const localFilePath = path.join(uploadsPath, filePath);
 
     if (fs.existsSync(localFilePath)) {
