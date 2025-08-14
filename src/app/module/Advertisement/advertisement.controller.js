@@ -4,7 +4,7 @@ const { deleteFile } = require('../../../utils/unLinkFiles');
 const path = require('path');
 const upload = require('../../../utils/upload');
 const Business = require('../Business/Business');
-
+const Owner = require('../Owner/Owner');
 
 exports.createAdvertisement = async (req, res, next) => {
 
@@ -91,9 +91,39 @@ exports.getAdvertisementByBusinessId = async (req, res, next) => {
     }
 }
 
+exports.updateAdsStatus = async (req, res, next) => {
+    const advertisementId = req.params.id;
+    const status = req.body.status;
+    try {
+        const advertisement = await Advertisement.findByIdAndUpdate(advertisementId, { status }, { new: true });
+        if (!advertisement) throw new ApiError('Advertisement not found', 404);
+        return res.status(200).json({
+            success: true,
+            message: 'Advertisement status updated successfully',
+            advertisement
+        });
+    } catch (err) {
+        throw new ApiError(err.message, 500);
+    }
+}
 
+exports.getAllAds = async (req, res, next) => {
+    try {
+        const advertisement = await Advertisement.find();
+        if (advertisement.length === 0) throw new ApiError('Advertisement not found', 404);
 
+        let owner;
+        advertisement.forEach(async (ad) => {
+            owner = await Owner.findById(ad.ownerId);
+            ad.owner = owner;
+        });
 
-
-
-
+        res.status(200).json({
+            success: true,
+            message: 'Advertisement fetched successfully',
+            advertisement,
+        });
+    } catch (err) {
+        throw new ApiError(err.message, 500);
+    }
+}
