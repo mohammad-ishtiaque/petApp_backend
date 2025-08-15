@@ -143,8 +143,9 @@ exports.deleteService = asyncHandler(async (req, res, next) => {
 
 
 exports.getServicesById = asyncHandler(async (req, res, next) => {
+    const serviceId = req.params.id;
     try {
-        const service = await Service.findById(req.params.serviceId);
+        const service = await Service.findById(serviceId);
         if (!service) throw new ApiError('Service not found', 404);
         const shopLogo = await Business.findById(service.businessId);
         service.shopLogo = shopLogo;

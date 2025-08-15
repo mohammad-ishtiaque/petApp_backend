@@ -5,7 +5,7 @@ const Service = require('../BusinessServices/Services');
 const Business = require('../Business/Business');
 const Owner = require('../Owner/Owner');
 const Pet = require('../Pet/Pet');
-
+const User = require('../User/User');
 exports.createBooking = asyncHandler(async (req, res) => {
     const userId = req.user.id || req.user._id;
     const { serviceId, bookingDate, bookingTime, bookingStatus, notes, selectedService, businessId, petId } = req.body;
@@ -16,6 +16,7 @@ exports.createBooking = asyncHandler(async (req, res) => {
     const pet = await Pet.findById(petId);
     if (!pet) throw new ApiError('Pet not found', 404);
     const ownerId = business.ownerId;
+    console.log(ownerId);
     const owner = await Owner.findById(ownerId);
 
     const booking = new  Booking({

@@ -6,7 +6,7 @@ const upload = require('../../../utils/upload');
 
 router.post('/createService',authenticateOwner,  upload.single('servicesImages') ,createService);
 router.get('/getServices', authenticateOwner, getAllServices);
-router.get('/getServicesById/:id', authenticateOwner, getServicesById);
+router.get('/getServicesById/:id', getServicesById);
 router.put('/updateService/:id', authenticateOwner, upload.single('servicesImages'), updateService);
 router.delete('/deleteService/:id', authenticateOwner, deleteService);
 
