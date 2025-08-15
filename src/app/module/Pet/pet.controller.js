@@ -40,11 +40,11 @@ exports.getPet = async (req, res, next) => {
         }
         return res.status(200).json({
             success: true,
-            message: 'Pet created successfully',
+            message: 'Pet fetched successfully',
             pet: pet
         });
     } catch (error) {
-        return next(new ApiError('Failed to create pet', 500)); 
+        return next(new ApiError('Failed to fetch pet', 500)); 
     }
 }
 
@@ -98,10 +98,10 @@ exports.getAllPets = async (req, res, next) => {
         }
         return res.status(200).json({
             success: true,
-            message: 'Pet created successfully',
+            message: 'Pet fetched successfully',
             pet: pet
         });
     } catch (error) {
-        return next(new ApiError('Failed to create pet', 500));
+        return next(new ApiError('Failed to fetch pet', 500));
     }
 }

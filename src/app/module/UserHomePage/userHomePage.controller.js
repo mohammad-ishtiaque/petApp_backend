@@ -11,10 +11,12 @@ const { ApiError } = require('../../../errors/errorHandler');
 
 exports.getServiceByType = asyncHandler(async (req, res) => {
     const type = req.params.type;
-    console.log(type);
+    // console.log(type);
     const services = await Service.find({ serviceType: type.toUpperCase() });
-    console.log(services);
+    // console.log(services);
     if (!services.length) throw new ApiError('Services not found', 404);
+
+
     res.status(200).json({
         success: true,
         message: 'Services fetched successfully',
@@ -22,3 +24,62 @@ exports.getServiceByType = asyncHandler(async (req, res) => {
     });
 });
 
+
+
+exports.totalPetsForLoggedInUser = asyncHandler(async (req, res) => {
+    const totalPets = await Pet.countDocuments({ userId: req.user.id });
+    if (!totalPets) throw new ApiError('Pets not found', 404);
+    const pets = await Pet.find({ userId: req.user.id });
+    if (!pets.length) throw new ApiError('Pets not found', 404);   
+    // console.log(pets);
+    const petList = pets.map(pet => ({
+        _id: pet._id,
+        petPhoto: pet.petPhoto[0] || '',
+        name: pet.name
+    }));
+
+    const user = await User.findById(req.user.id);
+    const userPic = user.profilePic;
+    //  console.log(petList);
+
+    res.status(200).json({
+        success: true,
+        message: 'Total pets for logged in user fetched successfully',
+        data: {
+            totalPets,
+            petList,
+            userPic
+        }
+    });
+});
+
+exports.allAdsWhichActive = asyncHandler(async (req, res) => {
+    const ads = await Advertisement.find({ status: 'ACTIVE' });
+    if (!ads.length) throw new ApiError('Ads not found', 404);
+    const adsPic = ads.map( ad => ad.advertisementImg);
+    res.status(200).json({
+        success: true,
+        message: 'Ads fetched successfully',
+        data:{
+            adsPic,
+            ads
+        }
+    });
+});
+
+exports.getActiveAdsDetails = asyncHandler(async (req, res) => {
+    const adsId = req.params.id;
+    const ads = await Advertisement.findOne({ status: 'ACTIVE', _id: adsId });
+    if (!ads) throw new ApiError('Ads not found', 404);
+    const business = await Business.findById(ads.businessId);
+    if (!business) throw new ApiError('Business not found', 404);
+    const services = await Service.find({ businessId: ads.businessId });
+    if (!services.length) throw new ApiError('Services not found', 404);
+    res.status(200).json({
+        success: true,
+        message: 'Ads fetched successfully',
+        ads,
+        business,
+        services
+    });
+});
