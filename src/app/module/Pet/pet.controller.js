@@ -3,7 +3,7 @@ const Pet = require('./Pet');
 const { ApiError } = require('../../../errors/errorHandler');
 const {deleteFile} = require('../../../utils/unLinkFiles');
 const asyncHandler = require('../../../utils/asyncHandler');
-
+const PetMedicalHistory = require('../PetMedicalHistory/PetMedicalHistory');
 
 exports.createPet = async (req, res, next) => {
     try {
@@ -103,5 +103,22 @@ exports.getAllPets = async (req, res, next) => {
         });
     } catch (error) {
         return next(new ApiError('Failed to fetch pet', 500));
+    }
+}
+
+exports.petMedicalHistoryById = async (req, res, next) => {
+    try {
+        const petId = req.params.id;
+        const medicalHistory = await PetMedicalHistory.find({ petId });
+        if (!medicalHistory) {
+            return next(new ApiError('Medical history not found', 404));
+        }
+        return res.status(200).json({
+            success: true,
+            message: 'Medical history fetched successfully',
+            medicalHistory
+        });
+    } catch (error) {
+        return next(new ApiError('Failed to fetch medical history', 500)); 
     }
 }
