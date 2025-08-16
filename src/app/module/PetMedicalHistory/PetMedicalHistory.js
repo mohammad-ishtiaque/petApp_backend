@@ -20,15 +20,11 @@ const petMedicalHistorySchema = new mongoose.Schema({
     treatmentDescription: {
         type: String,
     },
-    // treatmentCategory: {
-    //     type: String,
-    //     enum: ['WELLNESS', 'MEDICAL_RECORD'],
     treatmentStatus: {
         type: String,
         enum: ['PENDING', 'COMPLETED'], 
         default: 'PENDING'
     }
-    
 }, { timestamps: true })
 
 const PetMedicalHistory = mongoose.model('PetMedicalHistory', petMedicalHistorySchema);

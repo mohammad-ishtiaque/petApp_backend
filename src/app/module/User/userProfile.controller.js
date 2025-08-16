@@ -23,7 +23,7 @@ exports.getUserProfile = async (req, res, next) => {
 };
 
 exports.updateUserProfile = async (req, res, next) => {
-    const userId = req.params.id;
+    const userId = req.user.id;
     const { name, address, phone } = req.body;
 
     try {

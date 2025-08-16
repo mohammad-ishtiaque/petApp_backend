@@ -42,23 +42,16 @@ const petSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
-  photo: {
-    type: String,
-    default: ''
-  },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-
-  petPhoto: [{ type: String }],
-  
+  petPhoto: { type: String },
   createdAt: {
     type: Date,
     default: Date.now
   },
-
   updatedAt: {
     type: Date,
     default: Date.now

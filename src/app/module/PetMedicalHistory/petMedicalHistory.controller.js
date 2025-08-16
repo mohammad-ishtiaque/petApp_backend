@@ -16,7 +16,6 @@ exports.createPetMedicalHistory = asyncHandler(async (req, res) => {
         doctorName,
         treatmentDescription,
         treatmentStatus: treatmentStatus?.toUpperCase(),
-        // treatmentCategory: treatmentCategory.toUpperCase()
     });
     res.status(201).json({
         success: true,
@@ -68,7 +67,6 @@ exports.updatePetMedicalHistory = asyncHandler(async (req, res) => {
     petMedicalHistory.treatmentName = req.body.treatmentName || petMedicalHistory.treatmentName;
     petMedicalHistory.treatmentDescription = req.body.treatmentDescription || petMedicalHistory.treatmentDescription;
     petMedicalHistory.treatmentStatus = req.body.treatmentStatus || petMedicalHistory.treatmentStatus;
-    // petMedicalHistory.treatmentCategory = req.body.treatmentCategory || petMedicalHistory.treatmentCategory;
     await petMedicalHistory.save();
     res.status(200).json({
         success: true,

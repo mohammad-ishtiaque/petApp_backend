@@ -9,7 +9,7 @@ exports.createPet = async (req, res, next) => {
     try {
         const userId = req.user.id || req.user._id;
         // console.log(ownerId)
-        const petPhoto = req.files ? req.files.map(file => file.path) : [];
+        const petPhoto = req.file ? req.file.path : null;
         const { name, animalType, breed, age, gender, weight, height, color, description } = req.body;
         const pet = new Pet({ name, animalType, breed, age, gender, weight, height, color, description, userId, petPhoto });
         await pet.save();
@@ -54,6 +54,18 @@ exports.updatePet = async (req, res, next) => {
         if (!pet) {
             return next(new ApiError('Pet not found', 404));
         }
+        if (req.file) {
+            const oldPetPhoto = pet.petPhoto;
+            pet.petPhoto = req.file.path;
+            await pet.save();
+            if (oldPetPhoto) {
+                try {
+                    await deleteFile(oldPetPhoto);
+                } catch (deleteError) {
+                    console.error(`Error deleting file ${oldPetPhoto}:`, deleteError);
+                }
+            }
+        }
         res.status(200).json({
             success: true,
             message: 'Pet updated successfully',
@@ -69,13 +81,11 @@ exports.deletePet = async (req, res, next) => {
         const id = req.params.petId;
         const existingPet = await Pet.findById(id);
 
-        if (existingPet.petPhoto && existingPet.petPhoto.length > 0) {
-            for (const image of existingPet.petPhoto) {
-                try {
-                    await deleteFile(image.url);
-                } catch (deleteError) {
-                    console.error(`Error deleting file ${image.url}:`, deleteError);
-                }
+        if (existingPet.petPhoto) {
+            try {
+                await deleteFile(existingPet.petPhoto);
+            } catch (deleteError) {
+                console.error(`Error deleting file ${existingPet.petPhoto}:`, deleteError);
             }
         }
 
@@ -108,17 +118,41 @@ exports.getAllPets = async (req, res, next) => {
 
 exports.petMedicalHistoryById = async (req, res, next) => {
     try {
-        const petId = req.params.id;
-        const medicalHistory = await PetMedicalHistory.find({ petId });
-        if (!medicalHistory) {
-            return next(new ApiError('Medical history not found', 404));
+        const { id: petId } = req.params;
+        const { treatmentStatus, page = 1, limit = 10 } = req.query;
+
+        // Build query
+        const query = { petId };
+        if (treatmentStatus) {
+            query.treatmentStatus = treatmentStatus.trim().toUpperCase();
         }
+
+        // Pagination values
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+
+        // Fetch paginated medical history
+        const [medicalHistory, total] = await Promise.all([
+            PetMedicalHistory.find(query)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(parseInt(limit))
+                .lean(),
+            PetMedicalHistory.countDocuments(query)
+        ]);
+
+        if (!medicalHistory || medicalHistory.length === 0) {
+            return next(new ApiError('No medical history found', 404));
+        }
+
         return res.status(200).json({
             success: true,
             message: 'Medical history fetched successfully',
-            medicalHistory
+            totalRecords: total,
+            currentPage: parseInt(page),
+            totalPages: Math.ceil(total / limit),
+            data: medicalHistory
         });
     } catch (error) {
-        return next(new ApiError('Failed to fetch medical history', 500)); 
+        return next(new ApiError(error.message || 'Failed to fetch medical history', 500));
     }
-}
+};

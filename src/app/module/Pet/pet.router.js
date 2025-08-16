@@ -13,9 +13,9 @@ const upload = require('../../../utils/upload');
 
 
 
-router.post('/create', authenticateUser, upload.array('petPhoto', 2), createPet);
+router.post('/create', authenticateUser, upload.single('petPhoto'), createPet);
 router.get('/get/:petId', authenticateUser, getPet);
-router.put('/update/:petId', authenticateUser, upload.array('petPhoto', 2), updatePet);
+router.put('/update/:petId', authenticateUser, upload.single('petPhoto'), updatePet);
 router.delete('/delete/:petId', authenticateUser, deletePet);
 router.get('/get', authenticateUser, getAllPets);
 router.get('/get-medical-history/:id', authenticateUser, petMedicalHistoryById);
