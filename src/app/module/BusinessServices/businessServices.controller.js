@@ -12,6 +12,7 @@ exports.createService = asyncHandler(async (req, res, next) => {
         // console.log(ownerId);
         const business = await Business.findOne({ ownerId });
         const businessId = business._id;
+        const shopLogo = business?.shopLogo;
 
         const servicesImages = req.file ? req.file.path : null;
         const { serviceType, serviceName, location, openingTime, closingTime, offDay, providings, websiteLink, phone } = req.body;
@@ -30,7 +31,8 @@ exports.createService = asyncHandler(async (req, res, next) => {
             providings: Array.isArray(providings) ? providings.map(providing => providing.trim()) : [providings.trim()],
             phone,
             servicesImages,
-            businessId
+            businessId,
+            shopLogo
         });
 
         business.services.push(service._id);
@@ -53,7 +55,7 @@ exports.getAllServices = asyncHandler(async (req, res, next) => {
     const business = await Business.findOne({ ownerId });
 
     const businessId = business?._id;
-    const shopLogo = business?.shopLogo;
+    // const shopLogo = business?.shopLogo;
     // console.log(businessId);
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -62,9 +64,9 @@ exports.getAllServices = asyncHandler(async (req, res, next) => {
     try {
         const services = await Service.find({ businessId }).skip(startIndex).limit(limit);
 
-        services.forEach(service => {
-            service.shopLogo = shopLogo;
-        });
+        // services.forEach(service => {
+        //     service.shopLogo = shopLogo;
+        // });
 
         // console.log(businessDetails);
         if (!services) throw new ApiError('Services not found', 404);

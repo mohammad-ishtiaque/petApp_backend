@@ -9,18 +9,29 @@ const Advertisement = require('../Advertisement/Advertisement');
 const asyncHandler = require('../../../utils/asyncHandler');
 const { ApiError } = require('../../../errors/errorHandler');
 
-exports.getServiceByType = asyncHandler(async (req, res) => {
+exports.getServicesByType = asyncHandler(async (req, res) => {
     const type = req.params.type;
-    // console.log(type);
-    const services = await Service.find({ serviceType: type.toUpperCase() });
-    // console.log(services);
-    if (!services.length) throw new ApiError('Services not found', 404);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
 
+    const services = await Service.find({ serviceType: type.toUpperCase() })
+        .skip(startIndex).limit(limit);
+
+    if (!services.length) return res.status(200).json({
+        success: true,
+        message: 'Services not found',
+        data: []
+    });
 
     res.status(200).json({
         success: true,
         message: 'Services fetched successfully',
-        services
+        services,
+        currentPage: page,
+        pageSize: limit,
+        total: await Service.countDocuments({ serviceType: type.toUpperCase() })
     });
 });
 

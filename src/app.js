@@ -64,14 +64,14 @@ apiRoutes.forEach(route => {
 });
 
 // Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
-    success: false,
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : {}
-  });
-});
+// app.use((err, req, res, next) => {
+//   console.error(err.stack);
+//   res.status(500).json({
+//     success: false,
+//     message: 'Something went wrong!',
+//     error: process.env.NODE_ENV === 'development' ? err.message : {}
+//   });
+// });
 
 // Store socket service in app context
 app.set('socketService', socketService);
@@ -86,7 +86,7 @@ app.get('/', (req, res) => {
 });
 
 // Error handling middleware
-app.use(errorHandler);
+// app.use(errorHandler);
 
 // 404 handler
 app.use((req, res) => {
