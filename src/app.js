@@ -86,7 +86,7 @@ app.get('/', (req, res) => {
 });
 
 // Error handling middleware
-// app.use(errorHandler);
+app.use(errorHandler);
 
 // 404 handler
 app.use((req, res) => {
