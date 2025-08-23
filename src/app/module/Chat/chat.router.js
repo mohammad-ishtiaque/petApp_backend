@@ -14,7 +14,7 @@ const router = express.Router();
 router.use(authenticateOwnerAndUser);
 
 // Get messages for a specific chat room
-router.get("/messages/:roomId", getMessages);
+router.get("/messages", getMessages);
 
 // Get user's conversations
 router.get("/conversations", getConversations);
@@ -28,7 +28,7 @@ router.post("/", async (req, res, next) => {
     const { receiver, message } = req.body;
     const sender = {
       id: req.user.id,
-      role: req.user.role
+      role: req.user.role.toUpperCase()
     };
     
     const newMessage = await saveMessage(sender, receiver, message);

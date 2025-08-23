@@ -6,17 +6,30 @@ const Notification = require("../Notification/Notification");
 // Get messages for a chat room
 exports.getMessages = async (req, res, next) => {
   try {
-    const { senderRole, senderId, receiverRole, receiverId } = req.query;
-    const roomId = generateRoomId(
-      { role: senderRole, id: senderId },
-      { role: receiverRole, id: receiverId }
-    );
+    // const { roomId } = req.params;
+    const { limit = 20, page = 1, roomId } = req.query;
+    const skip = (page - 1) * limit;
+    
+    if (!roomId) {
+      return res.status(400).json({ message: 'Room ID is required' });
+    }
 
     const messages = await Message.find({ roomId })
       .sort({ createdAt: 1 })
+      .skip(skip)
+      .limit(parseInt(limit))
       .lean();
       
-    res.json(messages);
+    const totalMessages = await Message.countDocuments({ roomId });
+    
+    res.json({
+      messages,
+      pagination: {
+        total: totalMessages,
+        page: parseInt(page),
+        limit: parseInt(limit),
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -78,8 +91,8 @@ exports.getConversations = async (req, res, next) => {
       {
         $match: {
           $or: [
-            { 'sender.id': userId, 'sender.role': userRole },
-            { 'receiver.id': userId, 'receiver.role': userRole }
+            { 'sender.id': userId, 'sender.role': userRole.toUpperCase() },
+            { 'receiver.id': userId, 'receiver.role': userRole.toUpperCase() }
           ]
         }
       },
@@ -96,7 +109,7 @@ exports.getConversations = async (req, res, next) => {
                 { 
                   $and: [
                     { $eq: ['$receiver.id', userId] },
-                    { $eq: ['$receiver.role', userRole] },
+                    { $eq: ['$receiver.role', userRole.toUpperCase()] },
                     { $eq: ['$isRead', false] }
                   ]
                 },
@@ -129,14 +142,14 @@ exports.getConversations = async (req, res, next) => {
 // Mark messages as read
 exports.markAsRead = async (req, res, next) => {
   try {
-    const { roomId } = req.params;
+    const { roomId } = req.query;
     const { id: userId, role: userRole } = req.user;
 
     await Message.updateMany(
       {
         roomId,
         'receiver.id': userId,
-        'receiver.role': userRole,
+        'receiver.role': userRole.toUpperCase(),
         isRead: false
       },
       { $set: { isRead: true } }

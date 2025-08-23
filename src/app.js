@@ -13,11 +13,11 @@ dotenv.config();
 
 // Create Express app and HTTP server
 const app = express();
-const server = http.createServer(app);
+// const server = http.createServer(app);
 
 // Initialize WebSocket
-const SocketService = require('./services/socket.service');
-const socketService = new SocketService(server);
+// const SocketService = require('./services/socket.service');
+// const socketService = new SocketService(server);
 
 // Serve static files from the uploads directory in the project root
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
@@ -74,7 +74,7 @@ apiRoutes.forEach(route => {
 // });
 
 // Store socket service in app context
-app.set('socketService', socketService);
+// app.set('socketService', socketService);
 // app.use('/api/admin', require('./app/module/Admin/admin.routes'));
 
 // Health check route

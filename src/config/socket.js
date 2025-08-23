@@ -5,7 +5,8 @@ const socketCors = require("./socketCors");
 
 function initSocket(server) {
   const io = new Server(server, {
-    cors: socketCors
+    cors: socketCors,
+    debug: true
   });
 
   // Register all socket handlers
