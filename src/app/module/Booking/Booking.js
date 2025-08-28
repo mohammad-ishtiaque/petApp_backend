@@ -15,6 +15,19 @@ const bookingSchema = new mongoose.Schema({
     bookingTime: {
         type: String,
     },
+    // for the hotel booking. 
+    checkInTime: {
+        type: String,
+    },
+    checkOutTime: {
+        type: String,
+    },
+    checkInDate: {
+        type: Date,
+    },
+    checkOutDate: {
+        type: Date,
+    },
     bookingStatus: {
         type: String,
         enum: ['PENDING', 'COMPLETED', 'REJECTED', 'APPROVED'],
@@ -40,7 +53,15 @@ const bookingSchema = new mongoose.Schema({
     petId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Pet',
-    }
+    }, 
+    createdAt: {
+        type: Date,
+        default: Date.now
+    },
+    updatedAt: {
+        type: Date,
+        default: Date.now
+    },
     
 }, { timestamps: true })
 

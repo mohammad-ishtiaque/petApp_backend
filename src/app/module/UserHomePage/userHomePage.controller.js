@@ -8,6 +8,7 @@ const Booking = require('../Booking/Booking');
 const Advertisement = require('../Advertisement/Advertisement');
 const asyncHandler = require('../../../utils/asyncHandler');
 const { ApiError } = require('../../../errors/errorHandler');
+const checkIfOpenNow = require('../../../utils/checkOpen');
 
 exports.getServicesByType = asyncHandler(async (req, res) => {
     const type = req.params.type;
@@ -15,26 +16,34 @@ exports.getServicesByType = asyncHandler(async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
-
+  
     const services = await Service.find({ serviceType: type.toUpperCase() })
-        .skip(startIndex).limit(limit);
-
-    if (!services.length) return res.status(200).json({
+      .skip(startIndex)
+      .limit(limit)
+      .lean();
+  
+    if (!services.length) {
+      return res.status(200).json({
         success: true,
-        message: 'Services not found',
+        message: "Services not found",
         data: []
-    });
-
+      });
+    }
+  
+    const servicesWithStatus = services.map(service => ({
+      ...service,
+      isOpenNow: checkIfOpenNow(service) // ✅ compute open/closed status
+    }));
+  
     res.status(200).json({
-        success: true,
-        message: 'Services fetched successfully',
-        services,
-        currentPage: page,
-        pageSize: limit,
-        total: await Service.countDocuments({ serviceType: type.toUpperCase() })
+      success: true,
+      message: "Services fetched successfully",
+      services: servicesWithStatus,
+      currentPage: page,
+      pageSize: limit,
+      total: await Service.countDocuments({ serviceType: type.toUpperCase() })
     });
-});
-
+  });
 
 
 exports.totalPetsForLoggedInUser = asyncHandler(async (req, res) => {

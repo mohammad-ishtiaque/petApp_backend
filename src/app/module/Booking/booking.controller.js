@@ -6,9 +6,10 @@ const Business = require('../Business/Business');
 const Owner = require('../Owner/Owner');
 const Pet = require('../Pet/Pet');
 const User = require('../User/User');
+
 exports.createBooking = asyncHandler(async (req, res) => {
     const userId = req.user.id || req.user._id;
-    const { serviceId, bookingDate, bookingTime, bookingStatus, notes, selectedService, businessId, petId } = req.body;
+    const { serviceId, bookingDate, bookingTime, bookingStatus, notes, selectedService, businessId, petId, checkInTime, checkOutTime, checkInDate, checkOutDate } = req.body;
     // if (!serviceId || !bookingDate || !bookingTime || !bookingStatus || !notes || !businessId) throw new ApiError('All fields are required', 400);
     
     const business = await Business.findById(businessId);
@@ -30,7 +31,11 @@ exports.createBooking = asyncHandler(async (req, res) => {
         serviceType: service?.serviceType,
         businessId,
         ownerId,
-        petId
+        petId,
+        checkInTime,
+        checkOutTime,
+        checkInDate,
+        checkOutDate
     });
     owner.bookings.push(booking._id);   //push the booking id to the owner bookings
     await owner.save();
@@ -46,17 +51,29 @@ exports.createBooking = asyncHandler(async (req, res) => {
 }); 
 
 exports.getBooking = asyncHandler(async (req, res) => {
-    const booking = await Booking.find({userId: req.user.id || req.user._id});
-    if (!booking) throw new ApiError('Booking not found', 404);
+    const { pageNumber = 1, pageSize = 10, limit = 10 } = req.query;
+    const totalBookings = await Booking.countDocuments({userId: req.user.id || req.user._id});
+    const totalPages = Math.ceil(totalBookings / pageSize);
+    const bookings = await Booking.find({userId: req.user.id || req.user._id})
+        .skip((pageNumber - 1) * pageSize)
+        .limit(limit)
+        .sort({ bookingDate: -1 }); // sort by bookingDate in descending order
+
+    if (!bookings) throw new ApiError('Bookings not found', 404);
     res.status(200).json({
         success: true,
-        message: 'Booking retrieved successfully',
-        booking
-    });
+        message: 'Bookings retrieved successfully',
+        bookings,
+        totalPages,
+        totalBookings,
+        currentPage: pageNumber,
+        pageSize: pageSize,
+        limit: limit
+    })
 });
 
 exports.updateBooking = asyncHandler(async (req, res) => {
-    const booking = await Booking.findById(req.params.bookingId);
+    const booking = await Booking.findById(req.params.id);
     if (!booking) throw new ApiError('Booking not found', 404);
     booking.serviceId = req.body.serviceId || booking.serviceId;
     booking.userId = req.body.userId || booking.userId;
@@ -65,6 +82,10 @@ exports.updateBooking = asyncHandler(async (req, res) => {
     booking.bookingStatus = req.body.bookingStatus || booking.bookingStatus;
     booking.notes = req.body.notes || booking.notes;
     booking.businessId = req.body.businessId || booking.businessId;
+    booking.checkInTime = req.body.checkInTime || booking.checkInTime;
+    booking.checkOutTime = req.body.checkOutTime || booking.checkOutTime;
+    booking.checkInDate = req.body.checkInDate || booking.checkInDate;
+    booking.checkOutDate = req.body.checkOutDate || booking.checkOutDate;
     await booking.save();
     res.status(200).json({
         success: true,
@@ -76,8 +97,12 @@ exports.updateBooking = asyncHandler(async (req, res) => {
 exports.deleteBooking = asyncHandler(async (req, res) => {
     const booking = await Booking.findById(req.params.id);
     if (!booking) throw new ApiError('Booking not found', 404);
-    const business = await Business.findByIdAndUpdate(service.businessId, { $pull: { services: serviceId } });
+    const business = await Business.findByIdAndUpdate(booking.businessId, { $pull: { bookings: booking._id } });
+    const owner = await Owner.findByIdAndUpdate(booking.ownerId, { $pull: { bookings: booking._id } });
+
     await booking.deleteOne();
+
+
     res.status(200).json({
         success: true,
         message: `Booking deleted successfully ${req.params.id}`,

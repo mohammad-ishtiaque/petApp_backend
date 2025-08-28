@@ -5,6 +5,7 @@ const asyncHandler = require('../../../utils/asyncHandler');
 const path = require('path');
 const fs = require('fs');
 const { deleteFile } = require('../../../utils/unLinkFiles');
+const checkIfOpenNow = require('../../../utils/checkOpen');
 
 exports.createService = asyncHandler(async (req, res, next) => {
     try {
@@ -53,38 +54,43 @@ exports.createService = asyncHandler(async (req, res, next) => {
 exports.getAllServices = asyncHandler(async (req, res, next) => {
     const ownerId = req.owner?.id || req.owner?._id;
     const business = await Business.findOne({ ownerId });
-
+  
     const businessId = business?._id;
-    // const shopLogo = business?.shopLogo;
-    // console.log(businessId);
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
+  
     try {
-        const services = await Service.find({ businessId }).skip(startIndex).limit(limit);
-
-        // services.forEach(service => {
-        //     service.shopLogo = shopLogo;
-        // });
-
-        // console.log(businessDetails);
-        if (!services) throw new ApiError('Services not found', 404);
-        if (services.length === 0) throw new ApiError('No services found', 404);
-        return res.status(200).json({
-            success: true,
-            message: 'Services fetched successfully',
-            services,
-            total: await Service.countDocuments({ businessId }),
-            currentPage: page,
-            pageSize: limit,
-            startIndex,
-            endIndex
-        });
+      const services = await Service.find({ businessId })
+        .skip(startIndex)
+        .limit(limit)
+        .lean();
+  
+      if (!services || services.length === 0) {
+        throw new ApiError("No services found", 404);
+      }
+  
+      const servicesWithStatus = services.map(service => ({
+        ...service,
+        isOpenNow: checkIfOpenNow(service) // ✅ Now it shows open/close status
+      }));
+  
+      return res.status(200).json({
+        success: true,
+        message: "Services fetched successfully",
+        services: servicesWithStatus,
+        total: await Service.countDocuments({ businessId }),
+        currentPage: page,
+        pageSize: limit,
+        startIndex,
+        endIndex
+      });
     } catch (err) {
-        throw new ApiError(err.message, 500);
+      throw new ApiError(err.message, 500);
     }
-});
+  });
+  
 
 exports.updateService = async (req, res, next) => {
     const serviceId = req.params.id;

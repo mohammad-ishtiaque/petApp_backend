@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-
+const moment = require('moment'); 
 const serviceSchema = new mongoose.Schema({
 
     serviceType: {
@@ -43,6 +43,9 @@ const serviceSchema = new mongoose.Schema({
     },
     providings: [{type: String}],
 
+    //friendly places
+    
+
     servicesImages: { type: String },
 
     bookings: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Booking' }],
@@ -50,8 +53,34 @@ const serviceSchema = new mongoose.Schema({
     businessId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Business',
+        required: true
     },
-}, { timestamps: true })
+    isActive: {
+        type: Boolean,
+        default: true
+    }
+}, { timestamps: true, toJSON: { virtuals: true } });
+
+serviceSchema.virtual('isOpenNow').get(function () {
+    const now = moment();
+    const today = now.format('dddd'); // e.g. "Monday"
+  
+    // If today is off day → closed
+    if (this.offDay && this.offDay.toLowerCase() === today.toLowerCase()) {
+      return false;
+    }
+  
+    // Convert opening & closing times into today's date
+    const opening = moment(this.openingTime, "HH:mm");
+    const closing = moment(this.closingTime, "HH:mm");
+  
+    // Handle overnight businesses (e.g., 20:00 - 02:00)
+    if (closing.isBefore(opening)) {
+      return now.isAfter(opening) || now.isBefore(closing);
+    }
+  
+    return now.isBetween(opening, closing);
+  });
 
 const Service = mongoose.model('Service', serviceSchema);
 
