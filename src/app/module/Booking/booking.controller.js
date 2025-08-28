@@ -55,11 +55,14 @@ exports.getBooking = asyncHandler(async (req, res) => {
     const totalBookings = await Booking.countDocuments({userId: req.user.id || req.user._id});
     const totalPages = Math.ceil(totalBookings / pageSize);
     const bookings = await Booking.find({userId: req.user.id || req.user._id})
+        .populate('serviceId', 'serviceType isOpenNow businessId shopLogo location phone servicesImages') // populate serviceId
         .skip((pageNumber - 1) * pageSize)
         .limit(limit)
         .sort({ bookingDate: -1 }); // sort by bookingDate in descending order
 
     if (!bookings) throw new ApiError('Bookings not found', 404);
+
+    
     res.status(200).json({
         success: true,
         message: 'Bookings retrieved successfully',
@@ -99,6 +102,7 @@ exports.deleteBooking = asyncHandler(async (req, res) => {
     if (!booking) throw new ApiError('Booking not found', 404);
     const business = await Business.findByIdAndUpdate(booking.businessId, { $pull: { bookings: booking._id } });
     const owner = await Owner.findByIdAndUpdate(booking.ownerId, { $pull: { bookings: booking._id } });
+    const service = await Service.findByIdAndUpdate(booking.serviceId, { $pull: { bookings: booking._id } });
 
     await booking.deleteOne();
 
@@ -109,12 +113,13 @@ exports.deleteBooking = asyncHandler(async (req, res) => {
     });
 });
 
-exports.getBookingsByServiceId = asyncHandler(async (req, res) => {
-    const bookings = await Booking.find({ serviceId: req.params.id });
-    if (!bookings) throw new ApiError('Bookings not found', 404);
+exports.getBookingDetails = asyncHandler(async (req, res) => {
+    const booking = await Booking.findById(req.params.id)
+    .populate('serviceId', 'serviceType isOpenNow businessId shopLogo location phone servicesImages') // populate serviceId
+    if (!booking) throw new ApiError('Booking not found', 404);
     res.status(200).json({
         success: true,
-        message: 'Bookings retrieved successfully',
-        bookings
+        message: 'Booking details retrieved successfully',
+        booking
     });
 });

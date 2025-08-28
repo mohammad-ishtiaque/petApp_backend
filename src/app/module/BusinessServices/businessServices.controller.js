@@ -155,8 +155,8 @@ exports.getServicesById = asyncHandler(async (req, res, next) => {
     try {
         const service = await Service.findById(serviceId);
         if (!service) throw new ApiError('Service not found', 404);
-        const shopLogo = await Business.findById(service.businessId);
-        service.shopLogo = shopLogo;
+        // const shopLogo = await Business.findById(service.businessId);
+        // service.shopLogo = shopLogo;
         res.status(200).json({
             success: true,
             message: 'Service fetched successfully',
