@@ -51,14 +51,14 @@ exports.createBooking = asyncHandler(async (req, res) => {
 }); 
 
 exports.getBooking = asyncHandler(async (req, res) => {
-    const { pageNumber = 1, pageSize = 10, limit = 10 } = req.query;
+    const { page = 1, limit = 10 } = req.query;
     const totalBookings = await Booking.countDocuments({userId: req.user.id || req.user._id});
-    const totalPages = Math.ceil(totalBookings / pageSize);
+    const totalPages = Math.ceil(totalBookings / limit);
     const bookings = await Booking.find({userId: req.user.id || req.user._id})
-        .populate('serviceId', 'serviceType isOpenNow businessId shopLogo location phone servicesImages') // populate serviceId
-        .skip((pageNumber - 1) * pageSize)
+        .populate('serviceId', 'serviceType isOpenNow businessId shopLogo location phone servicesImages')
+        .skip((page - 1) * limit)
         .limit(limit)
-        .sort({ bookingDate: -1 }); // sort by bookingDate in descending order
+        .sort({ bookingDate: -1 });
 
     if (!bookings) throw new ApiError('Bookings not found', 404);
 
@@ -69,8 +69,7 @@ exports.getBooking = asyncHandler(async (req, res) => {
         bookings,
         totalPages,
         totalBookings,
-        currentPage: pageNumber,
-        pageSize: pageSize,
+        currentPage: page,
         limit: limit
     })
 });
