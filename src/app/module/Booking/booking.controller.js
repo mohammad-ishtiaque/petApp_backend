@@ -55,7 +55,7 @@ exports.getBooking = asyncHandler(async (req, res) => {
     const totalBookings = await Booking.countDocuments({userId: req.user.id || req.user._id});
     const totalPages = Math.ceil(totalBookings / limit);
     const bookings = await Booking.find({userId: req.user.id || req.user._id})
-        .populate('serviceId', 'serviceType isOpenNow businessId shopLogo location phone servicesImages')
+        .populate('serviceId', 'serviceType isOpenNow businessId shopLogo location phone servicesImages websiteLink')
         .skip((page - 1) * limit)
         .limit(limit)
         .sort({ bookingDate: -1 });
@@ -114,7 +114,7 @@ exports.deleteBooking = asyncHandler(async (req, res) => {
 
 exports.getBookingDetails = asyncHandler(async (req, res) => {
     const booking = await Booking.findById(req.params.id)
-    .populate('serviceId', 'serviceType isOpenNow businessId shopLogo location phone servicesImages') // populate serviceId
+    .populate('serviceId', 'serviceType isOpenNow businessId shopLogo location phone servicesImages websiteLink') // populate serviceId
     if (!booking) throw new ApiError('Booking not found', 404);
     res.status(200).json({
         success: true,

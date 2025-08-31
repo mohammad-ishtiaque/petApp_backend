@@ -16,12 +16,13 @@ exports.getServicesByType = asyncHandler(async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
-  
+
     const services = await Service.find({ serviceType: type.toUpperCase() })
       .skip(startIndex)
       .limit(limit)
-      .lean();
-  
+      .lean()
+      .populate('reviews', 'comment rating');
+
     if (!services.length) {
       return res.status(200).json({
         success: true,
@@ -32,7 +33,7 @@ exports.getServicesByType = asyncHandler(async (req, res) => {
   
     const servicesWithStatus = services.map(service => ({
       ...service,
-      isOpenNow: checkIfOpenNow(service) // ✅ compute open/closed status
+      isOpenNow: checkIfOpenNow(service),
     }));
   
     res.status(200).json({

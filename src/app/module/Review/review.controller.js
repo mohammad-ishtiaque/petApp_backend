@@ -67,6 +67,22 @@ exports.getAllReviewsByServiceId = asyncHandler(async (req, res, next) => {
     if (!reviews) {
         return next(new ApiError('Reviews not found', 404));
     }
+    const avgRating = reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length;
+    res.status(200).json({
+        success: true,
+        message: 'Reviews fetched successfully',
+        reviews,
+        avgRating,
+        totalReviews: reviews.length
+    });
+});
+
+
+exports.getAllReviewsByUserId = asyncHandler(async (req, res, next) => {
+    const reviews = await Review.find({ userId: req.user.id || req.user._id });   
+    if (!reviews) {
+        return next(new ApiError('Reviews not found', 404));
+    }
     res.status(200).json({
         success: true,
         message: 'Reviews fetched successfully',
