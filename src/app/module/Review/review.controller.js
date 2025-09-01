@@ -3,7 +3,7 @@ const Business = require('../Business/Business');
 const Service = require('../BusinessServices/Services');
 const asyncHandler = require('../../../utils/asyncHandler');
 const {ApiError} = require('../../../errors/errorHandler');
-
+const User = require('../User/User');
 
 exports.createReview = asyncHandler(async (req, res, next) => {
     //when user click on the particular service, than it will get the businessId, ownerId, serviceId
@@ -63,7 +63,9 @@ exports.getAllReviewsByBusinessId = asyncHandler(async (req, res, next) => {
 });
 
 exports.getAllReviewsByServiceId = asyncHandler(async (req, res, next) => {
-    const reviews = await Review.find({ serviceId: req.params.id });   
+    const reviews = await Review.find({ serviceId: req.params.id }).populate('userId', 'name profilePic');
+
+    // console.log(users);
     if (!reviews) {
         return next(new ApiError('Reviews not found', 404));
     }
@@ -79,7 +81,7 @@ exports.getAllReviewsByServiceId = asyncHandler(async (req, res, next) => {
 
 
 exports.getAllReviewsByUserId = asyncHandler(async (req, res, next) => {
-    const reviews = await Review.find({ userId: req.user.id || req.user._id });   
+    const reviews = await Review.find({ userId: req.user.id || req.user._id });
     if (!reviews) {
         return next(new ApiError('Reviews not found', 404));
     }
