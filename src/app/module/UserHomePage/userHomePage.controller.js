@@ -104,3 +104,180 @@ exports.getActiveAdsDetails = asyncHandler(async (req, res) => {
         services
     });
 });
+
+
+exports.getAllUserHomePageData = asyncHandler(async (req, res) => {
+  const type = req.query.type;
+  const userId = req.user.id; 
+
+  // Get services with reviews
+  let servicesQuery = Service.find({ isActive: true });
+  if (type) {
+      servicesQuery = servicesQuery.where('serviceType').equals(type.toUpperCase());
+  }
+  
+  const services = await servicesQuery
+      .populate({
+          path: 'reviews',
+          select: 'comment rating',
+          options: { sort: { createdAt: -1 } }
+      })
+      .select('-_id -__v -createdAt -updatedAt')
+      .lean();
+
+  // Get user's pets
+  const totalPets = await Pet.countDocuments({ userId });
+  const pets = await Pet.find({ userId })
+      .select('_id name petPhoto')
+      .lean();
+
+  // Get active advertisements
+  const ads = await Advertisement.find({ status: 'ACTIVE' })
+      .select('_id advertisementImg')
+      .lean();
+
+  // Get ad details if ad ID is provided
+  const adsId = req.query.id;
+  const adsDetails = adsId 
+      ? await Advertisement.findOne({ 
+          _id: adsId, 
+          status: 'ACTIVE' 
+        })
+          .populate('businessId', 'shopLogo location servicesImages websiteLink')
+          .lean()
+      : null;
+
+  // Get upcoming appointments for the user
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Set to start of day
+
+  const upcomingAppointments = await Booking.find({
+      userId,
+      $or: [
+          { 
+              checkInDate: { $gte: today }, // For hotel bookings
+              bookingStatus: { $in: ['PENDING', 'APPROVED'] }
+          },
+          { 
+              bookingDate: { $gte: today }, // For regular appointments
+              bookingStatus: { $in: ['PENDING', 'APPROVED'] }
+          }
+      ]
+  })
+  .sort({
+      checkInDate: 1,  // Sort by check-in date first (for hotels)
+      bookingDate: 1,  // Then by booking date
+      bookingTime: 1   // Then by booking time
+  })
+  .limit(5) // Limit to 5 upcoming appointments
+  .populate('serviceId', 'serviceName serviceType shopLogo')
+  .lean();
+
+  // Transform appointments data
+  const transformedAppointments = upcomingAppointments.map(appointment => {
+      const isHotelBooking = appointment.serviceId?.serviceType === 'HOTEL';
+      const date = isHotelBooking ? appointment.checkInDate : appointment.bookingDate;
+      const time = isHotelBooking ? appointment.checkInTime : appointment.bookingTime;
+      
+      return {
+          id: appointment._id,
+          service: {
+              id: appointment.serviceId?._id,
+              name: appointment.serviceId?.serviceName || 'Service not available',
+              type: appointment.serviceId?.serviceType,
+              image: appointment.serviceId?.shopLogo
+          },
+          date: date,
+          time: time,
+          status: appointment.bookingStatus,
+          isHotelBooking,
+          ...(isHotelBooking && {
+              checkInDate: appointment.checkInDate,
+              checkOutDate: appointment.checkOutDate,
+              checkInTime: appointment.checkInTime,
+              checkOutTime: appointment.checkOutTime
+          }),
+          notes: appointment.notes
+      };
+  });
+
+  // Transform services data (existing code)
+  const transformedServices = services.map(service => {
+      const avgRating = service.reviews?.length 
+          ? (service.reviews.reduce((sum, r) => sum + r.rating, 0) / service.reviews.length).toFixed(1)
+          : 0;
+
+      return {
+          id: service._id,
+          type: service.serviceType,
+          name: service.serviceName,
+          location: service.location,
+          contact: {
+              phone: service.phone,
+              website: service.websiteLink
+          },
+          hours: {
+              opening: service.openingTime,
+              closing: service.closingTime,
+              offDay: service.offDay,
+              isOpenNow: checkIfOpenNow(service)
+          },
+          images: {
+              logo: service.shopLogo,
+              gallery: service.servicesImages ? [service.servicesImages] : []
+          },
+          services: service.providings,
+          stats: {
+              totalBookings: service.bookings?.length || 0,
+              totalReviews: service.reviews?.length || 0,
+              averageRating: parseFloat(avgRating)
+          },
+          reviews: service.reviews?.slice(0, 3) || []
+      };
+  });
+
+  // Transform pets data (existing code)
+  const transformedPets = pets.map(pet => ({
+      id: pet._id,
+      name: pet.name,
+      photo: pet.petPhoto
+  }));
+
+  // Transform ads data (existing code)
+  const transformedAds = ads.map(ad => ({
+      id: ad._id,
+      images: ad.advertisementImg
+  }));
+
+  // Transform ad details if exists (existing code)
+  let transformedAdDetails = null;
+  if (adsDetails) {
+      transformedAdDetails = {
+          id: adsDetails._id,
+          images: adsDetails.advertisementImg,
+          business: adsDetails.businessId ? {
+              logo: adsDetails.businessId.shopLogo,
+              location: adsDetails.businessId.location,
+              images: adsDetails.businessId.servicesImages,
+              website: adsDetails.businessId.websiteLink
+          } : null
+      };
+  }
+
+  res.status(200).json({
+      success: true,
+      message: 'All user home page data fetched successfully',
+      data: {
+          services: transformedServices,
+          appointments: transformedAppointments, // Add appointments to response
+          pets: {
+              total: totalPets,
+              list: transformedPets
+          },
+          advertisements: {
+              featured: transformedAds,
+              details: transformedAdDetails
+          }
+      }
+  });
+});

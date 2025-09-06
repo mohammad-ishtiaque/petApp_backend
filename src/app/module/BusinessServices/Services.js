@@ -44,7 +44,6 @@ const serviceSchema = new mongoose.Schema({
     providings: [{type: String}],
 
     //friendly places
-    
 
     servicesImages: { type: String },
 

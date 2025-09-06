@@ -50,7 +50,6 @@ exports.createService = asyncHandler(async (req, res, next) => {
     }
 });
 
-
 exports.getAllServices = asyncHandler(async (req, res, next) => {
     const ownerId = req.owner?.id || req.owner?._id;
     const business = await Business.findOne({ ownerId });
@@ -91,7 +90,6 @@ exports.getAllServices = asyncHandler(async (req, res, next) => {
     }
   });
   
-
 exports.updateService = async (req, res, next) => {
     const serviceId = req.params.id;
 
@@ -148,7 +146,6 @@ exports.deleteService = asyncHandler(async (req, res, next) => {
         throw new ApiError(err.message, 500);
     }
 });
-
 
 exports.getServicesById = asyncHandler(async (req, res, next) => {
     const serviceId = req.params.id;
