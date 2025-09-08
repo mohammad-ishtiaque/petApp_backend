@@ -35,13 +35,17 @@ exports.getPet = async (req, res, next) => {
     try {
         const id = req.params.petId;
         const pet = await Pet.findById(id);
+
+        const petMedicalHistory = await PetMedicalHistory.find({petId: id});
+        // console.log(petMedicalHistory)
         if (!pet) {
             return next(new ApiError('Pet not found', 404));
         }
         return res.status(200).json({
             success: true,
             message: 'Pet fetched successfully',
-            pet: pet
+            pet: pet,
+            petMedicalHistory: petMedicalHistory
         });
     } catch (error) {
         return next(new ApiError('Failed to fetch pet', 500)); 

@@ -89,7 +89,7 @@ exports.deletePetMedicalHistory = asyncHandler(async (req, res) => {
 
 exports.getPetMedicalHistoryByPetId = asyncHandler(async (req, res) => {
     const petId = req.params.petId;
-
+    
     // Pagination values from query params
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
