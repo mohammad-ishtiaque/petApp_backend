@@ -55,7 +55,7 @@ exports.totalPetsForLoggedInUser = asyncHandler(async (req, res) => {
     // console.log(pets);
     const petList = pets.map(pet => ({
         _id: pet._id,
-        petPhoto: pet.petPhoto[0] || '',
+        petPhoto: pet.petPhoto,
         name: pet.name
     }));
 
