@@ -11,40 +11,47 @@ const { ApiError } = require('../../../errors/errorHandler');
 const checkIfOpenNow = require('../../../utils/checkOpen');
 
 exports.getServicesByType = asyncHandler(async (req, res) => {
-    const type = req.params.type;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
+  const type = req.params.type;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const startIndex = (page - 1) * limit;
 
-    const services = await Service.find({ serviceType: type.toUpperCase() })
-      .skip(startIndex)
-      .limit(limit)
-      .lean()
-      .populate('reviews', 'comment rating');
+  // Fetch services with pagination
+  const services = await Service.find({ serviceType: type.toUpperCase() })
+    .skip(startIndex)
+    .limit(limit)
+    .lean()
+    .populate("reviews", "comment rating");
 
-    if (!services.length) {
-      return res.status(200).json({
-        success: true,
-        message: "Services not found",
-        data: []
-      });
-    }
-  
-    const servicesWithStatus = services.map(service => ({
+    if (!services.length) throw new ApiError('Services not found', 404);
+  // Calculate average rating and isOpenNow
+  const servicesWithStatus = services.map(service => {
+    const ratings = service.reviews?.map(r => r.rating);
+    const avgRating = ratings?.length
+      ? ratings.reduce((sum, r) => sum + r, 0) / ratings.length
+      : 0;
+
+    return {
       ...service,
       isOpenNow: checkIfOpenNow(service),
-    }));
-  
-    res.status(200).json({
-      success: true,
-      message: "Services fetched successfully",
-      services: servicesWithStatus,
-      currentPage: page,
-      pageSize: limit,
-      total: await Service.countDocuments({ serviceType: type.toUpperCase() })
-    });
+      avgRating: parseFloat(avgRating.toFixed(1)) // rounded to 1 decimal
+    };
   });
+
+  // Total count for pagination
+  const total = await Service.countDocuments({ serviceType: type.toUpperCase() });
+
+  res.status(200).json({
+    success: true,
+    message: services.length ? "Services fetched successfully" : "Services not found",
+    services: servicesWithStatus,
+    currentPage: page,
+    pageSize: limit,
+    total,
+  });
+});
+
+
 
 
 exports.totalPetsForLoggedInUser = asyncHandler(async (req, res) => {
