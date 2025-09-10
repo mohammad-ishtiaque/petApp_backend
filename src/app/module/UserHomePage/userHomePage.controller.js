@@ -52,8 +52,6 @@ exports.getServicesByType = asyncHandler(async (req, res) => {
 });
 
 
-
-
 exports.totalPetsForLoggedInUser = asyncHandler(async (req, res) => {
     const totalPets = await Pet.countDocuments({ userId: req.user.id });
     if (!totalPets) throw new ApiError('Pets not found', 404);
@@ -355,3 +353,5 @@ exports.searchServices = asyncHandler(async (req, res) => {
         total
     });
 });
+
+

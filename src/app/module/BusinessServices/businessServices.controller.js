@@ -7,6 +7,90 @@ const fs = require('fs');
 const { deleteFile } = require('../../../utils/unLinkFiles');
 const checkIfOpenNow = require('../../../utils/checkOpen');
 
+// Find nearby services by type within a radius (default 10km)
+exports.getNearbyServices = asyncHandler(async (req, res, next) => {
+    try {
+        const { type, lat, long, radiusKm = 10 } = req.query;
+
+        if (!type) throw new ApiError('Query param "type" is required', 400);
+        if (lat === undefined || long === undefined) {
+            throw new ApiError('Query params "lat" and "long" are required', 400);
+        }
+
+        const userLat = parseFloat(lat);
+        const userLng = parseFloat(long);
+        const radius = radiusKm ? parseFloat(radiusKm) : 10;
+
+        if (Number.isNaN(userLat) || Number.isNaN(userLng)) {
+            throw new ApiError('Invalid coordinates provided', 400);
+        }
+
+        const typeUpper = String(type).trim().toUpperCase();
+
+        const services = await Service.aggregate([
+            {
+                $match: {
+                    serviceType: typeUpper,
+                    isActive: true,
+                    latitude: { $exists: true, $ne: null, $ne: '' },
+                    longitude: { $exists: true, $ne: null, $ne: '' }
+                }
+            },
+            {
+                $addFields: {
+                    latNum: { $toDouble: '$latitude' },
+                    lngNum: { $toDouble: '$longitude' }
+                }
+            },
+            {
+                $addFields: {
+                    distanceKm: {
+                        $let: {
+                            vars: {
+                                lat1: { $degreesToRadians: userLat },
+                                lon1: { $degreesToRadians: userLng },
+                                lat2: { $degreesToRadians: '$latNum' },
+                                lon2: { $degreesToRadians: '$lngNum' }
+                            },
+                            in: {
+                                $multiply: [
+                                    6371,
+                                    {
+                                        $acos: {
+                                            $add: [
+                                                { $multiply: [ { $sin: '$$lat1' }, { $sin: '$$lat2' } ] },
+                                                { $multiply: [ { $cos: '$$lat1' }, { $cos: '$$lat2' }, { $cos: { $subtract: ['$$lon2', '$$lon1'] } } ] }
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+            { $match: { distanceKm: { $lte: radius } } },
+            { $sort: { distanceKm: 1 } },
+            { $limit: 100 }
+        ]);
+
+        // Attach open/close status in response (aggregation doesn't apply virtuals)
+        const results = services.map((s) => ({
+            ...s,
+            isOpenNow: checkIfOpenNow(s)
+        }));
+
+        return res.status(200).json({
+            success: true,
+            message: 'Nearby services fetched successfully',
+            services: results,
+            count: results.length
+        });
+    } catch (err) {
+        throw new ApiError(err.message, err.statusCode || 500);
+    }
+});
+
 exports.createService = asyncHandler(async (req, res, next) => {
     try {
         const ownerId = req.owner.id;
@@ -16,7 +100,7 @@ exports.createService = asyncHandler(async (req, res, next) => {
         const shopLogo = business?.shopLogo;
 
         const servicesImages = req.file ? req.file.path : null;
-        const { serviceType, serviceName, location, openingTime, closingTime, offDay, providings, websiteLink, phone } = req.body;
+        const { serviceType, serviceName, location, openingTime, closingTime, offDay, providings, websiteLink, phone, latitude, longitude } = req.body;
 
         const existingService = await Service.findOne({ businessId, serviceType: serviceType.toUpperCase() });
         if (existingService) throw new ApiError('An owner cannot create one service with the same service type', 400);
@@ -95,7 +179,7 @@ exports.getAllServices = asyncHandler(async (req, res, next) => {
 exports.updateService = async (req, res, next) => {
     const serviceId = req.params.id;
 
-    const { serviceName, location, openingTime, closingTime, offDay, websiteLink, providings, phone } = req.body;
+    const { serviceName, location, openingTime, closingTime, offDay, websiteLink, providings, phone, latitude, longitude } = req.body;
 
     try {
         const service = await Service.findById(serviceId);
