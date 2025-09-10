@@ -1,5 +1,5 @@
 const express = require('express');
-const { getServicesByType, totalPetsForLoggedInUser, allAdsWhichActive, getActiveAdsDetails, getAllUserHomePageData } = require('./userHomePage.controller');
+const { getServicesByType, totalPetsForLoggedInUser, allAdsWhichActive, getActiveAdsDetails, getAllUserHomePageData, searchServices } = require('./userHomePage.controller');
 const { authenticateUser } = require('../../middleware/auth.middleware');
 const router = express.Router();
 
@@ -8,6 +8,7 @@ router.get('/totalPetsForLoggedInUser', authenticateUser, totalPetsForLoggedInUs
 router.get('/allAdsWhichActive', authenticateUser, allAdsWhichActive);
 router.get('/getActiveAdsDetails/:id', authenticateUser, getActiveAdsDetails);
 router.get('/getAllUserHomePageData', authenticateUser, getAllUserHomePageData);
+router.get('/services/search', searchServices);
 
 
 module.exports = router;

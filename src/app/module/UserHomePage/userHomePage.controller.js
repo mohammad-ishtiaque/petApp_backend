@@ -288,3 +288,70 @@ exports.getAllUserHomePageData = asyncHandler(async (req, res) => {
       }
   });
 });
+
+exports.searchServices = asyncHandler(async (req, res) => {
+    const { q: searchQuery, serviceType, location, isOpen, sortBy, sortOrder } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const startIndex = (page - 1) * limit;
+
+    const filter = { isActive: true };
+
+    if (searchQuery) {
+        // Case-insensitive search on service name and description
+        filter.$or = [
+            { serviceName: { $regex: searchQuery, $options: 'i' } },
+            { description: { $regex: searchQuery, $options: 'i' } }
+        ];
+    }
+
+    if (serviceType) {
+        filter.serviceType = serviceType.toUpperCase();
+    }
+
+    if (location) {
+        filter.location = { $regex: location, $options: 'i' };
+    }
+
+    // Find initial services based on DB filters
+    let services = await Service.find(filter).lean().populate('reviews', 'rating');
+
+    // In-memory filtering and data augmentation
+    let servicesWithStatus = services.map(service => {
+        const ratings = service.reviews?.map(r => r.rating);
+        const avgRating = ratings?.length
+            ? ratings.reduce((sum, r) => sum + r, 0) / ratings.length
+            : 0;
+
+        return {
+            ...service,
+            isOpenNow: checkIfOpenNow(service),
+            avgRating: parseFloat(avgRating.toFixed(1))
+        };
+    });
+
+    // In-memory filter for isOpen
+    if (isOpen === 'true') {
+        servicesWithStatus = servicesWithStatus.filter(service => service.isOpenNow);
+    }
+
+    // Sorting
+    if (sortBy) {
+        servicesWithStatus.sort((a, b) => {
+            const order = sortOrder === 'desc' ? -1 : 1;
+            return (a[sortBy] > b[sortBy] ? 1 : -1) * order;
+        });
+    }
+
+    const total = servicesWithStatus.length;
+    const paginatedServices = servicesWithStatus.slice(startIndex, startIndex + limit);
+
+    res.status(200).json({
+        success: true,
+        message: total ? 'Services fetched successfully' : 'No services found matching your criteria.',
+        services: paginatedServices,
+        currentPage: page,
+        pageSize: limit,
+        total
+    });
+});

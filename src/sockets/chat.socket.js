@@ -94,11 +94,9 @@ module.exports = (io, socket, socketService) => {
       // Save the message
       const newMessage = await saveMessage(sender, receiver, message, io);
       
-      // Generate room ID (must be consistent for both sender and receiver)
-      const roomId = [
-        `${sender.role}:${sender.id}`,
-        `${receiver.role}:${receiver.id}`
-      ].sort().join('_');
+      // Generate room ID using the utility function (must be consistent for both sender and receiver)
+      const { generateRoomId } = require('../utils/chatHandler');
+      const roomId = generateRoomId(sender, receiver);
       
       console.log('[Chat] Emitting receive_message to room:', roomId);
       
