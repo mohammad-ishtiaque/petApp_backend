@@ -25,6 +25,8 @@ exports.createService = asyncHandler(async (req, res, next) => {
             serviceType: serviceType?.trim().toUpperCase(),
             serviceName: serviceName?.trim(),
             location: location?.trim(),
+            latitude: latitude?.trim(),
+            longitude: longitude?.trim(),
             openingTime: openingTime?.trim(),
             closingTime: closingTime?.trim(),
             offDay: offDay?.trim(),
@@ -115,6 +117,8 @@ exports.updateService = async (req, res, next) => {
         service.offDay = offDay || service.offDay;
         service.websiteLink = websiteLink || service.websiteLink;
         service.providings = providings || service.providings;
+        service.latitude = latitude || service.latitude;
+        service.longitude = longitude || service.longitude;
         service.phone = phone || service.phone;
 
         await service.save();

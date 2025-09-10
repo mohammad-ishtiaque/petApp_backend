@@ -12,11 +12,15 @@ const serviceSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-
     location: {
         type: String,
     },
-
+    latitude: {
+        type: String,
+    },
+    longitude: {
+        type: String,
+    },
     openingTime: {
         type: String,
         required: true
