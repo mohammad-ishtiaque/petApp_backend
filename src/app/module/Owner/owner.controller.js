@@ -3,7 +3,6 @@ const { ApiError } = require('../../../errors/errorHandler');
 const { deleteFile } = require('../../../utils/unLinkFiles');
 const path = require('path');
 const upload = require('../../../utils/upload');
-const asyncHnadler = require('../../../utils/asyncHandler');
 const Business = require('../Business/Business');
 const Service = require('../BusinessServices/Services');
 const Booking = require('../Booking/Booking');
@@ -11,7 +10,7 @@ const asyncHandler = require('../../../utils/asyncHandler');
 const Pet = require('../Pet/Pet')
 
 
-exports.getOwnerDetails = asyncHnadler(async (req, res, next) => {
+exports.getOwnerDetails = asyncHandler(async (req, res, next) => {
   const id = req.owner.id || req.owner._id;
 
   const owner = await Owner.findById(id).select('-password');
@@ -65,7 +64,7 @@ exports.updateOwnerProfile = async (req, res, next) => {
   }
 };
 
-exports.deleteOwner = asyncHnadler(async (req, res, next) => {
+exports.deleteOwner = asyncHandler(async (req, res, next) => {
   const id = req.owner.id || req.owner._id;
   const owner = await Owner.findByIdAndDelete(id);
   const businesses = await Business.find({ ownerId: id });
@@ -83,7 +82,7 @@ exports.deleteOwner = asyncHnadler(async (req, res, next) => {
 });
 
 
-exports.getOwnerBusinesses = asyncHnadler(async (req, res, next) => {
+exports.getOwnerBusinesses = asyncHandler(async (req, res, next) => {
   const id = req.owner.id || req.owner._id;
   const businesses = await Business.find({ ownerId: id });
   const services = await Service.find({ businessId: { $in: businesses.map(business => business._id) } });
@@ -102,7 +101,10 @@ exports.getOwnerBusinesses = asyncHnadler(async (req, res, next) => {
 exports.getAllBookingsByOwner = asyncHandler(async (req, res, next) => {
   const ownerId = req.owner.id || req.owner._id;
 
-  const owner = await Owner.findById(ownerId).populate('bookings'); // automatically gets booking data
+  const owner = await Owner.findById(ownerId).populate({
+    path: 'bookings',
+    options: { sort: { createdAt: -1 } }
+  }); // sort most recent first
 
   if (!owner || !owner.bookings || owner.bookings.length === 0) {
     return res.status(404).json({
@@ -120,11 +122,10 @@ exports.getAllBookingsByOwner = asyncHandler(async (req, res, next) => {
 
 
 exports.updateBookingStatus = asyncHandler(async (req, res) => {
-  const  bookingId  = req.params._id || req.params.id;
-  const { status } = req.body;
+  const bookingId = req.params._id || req.params.id;
+  const { status, cancellationReason } = req.body;
 
-  const validStatuses = ['PENDING', 'COMPLETED', 'REJECTED', 'APPROVED'];
- 
+  const validStatuses = ['APPROVED', 'COMPLETED', 'CANCELLED'];
   if (!validStatuses.includes(status)) {
     throw new ApiError(`Invalid booking status. Allowed: ${validStatuses.join(', ')}`, 400);
   }
@@ -134,8 +135,50 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
     throw new ApiError('Booking not found', 404);
   }
 
+  // Ensure the authenticated owner owns this booking
+  const requesterOwnerId = req.owner?.id || req.owner?._id;
+  if (String(booking.ownerId) !== String(requesterOwnerId)) {
+    throw new ApiError('Not authorized to update this booking', 403);
+  }
+
   booking.bookingStatus = status;
+  if (status === 'CANCELLED') {
+    booking.cancellationReason = cancellationReason || booking.cancellationReason;
+  }
   await booking.save();
+
+  // Notify the user about the status change
+  try {
+    const socketService = req.app.get('socketService');
+    if (socketService) {
+      let title = 'Booking Updated';
+      let message = `Your booking status changed to ${status}.`;
+      if (status === 'APPROVED') {
+        title = 'Booking Approved';
+        message = 'Your booking has been approved.';
+      } else if (status === 'COMPLETED') {
+        title = 'Booking Completed';
+        message = 'Your booking has been completed.';
+      } else if (status === 'CANCELLED') {
+        title = 'Booking Cancelled';
+        message = cancellationReason ? `Your booking was cancelled. Reason: ${cancellationReason}` : 'Your booking was cancelled.';
+      }
+
+      await socketService.sendNotification(
+        { id: booking.userId, role: 'USER' },
+        {
+          sender: { id: booking.ownerId, role: 'OWNER' },
+          type: 'SYSTEM',
+          title,
+          message,
+          data: { bookingId: booking._id, status, cancellationReason },
+          relatedEntity: { type: 'BOOKING', id: booking._id }
+        }
+      );
+    }
+  } catch (err) {
+    console.error('Failed to send status update notification:', err);
+  }
 
   res.status(200).json({
     success: true,

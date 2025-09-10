@@ -1,8 +1,18 @@
 const Notification = require("../app/module/Notification/Notification");
 
 class NotificationService {
-  constructor(io) {
+  constructor(io, options = {}) {
     this.io = io;
+    const envToggle =
+      typeof process !== 'undefined' && process.env.NOTIFICATIONS_REALTIME;
+    const enableRealtimeFromEnv =
+      envToggle === undefined ? undefined : envToggle === 'true';
+    this.enableRealtime =
+      options.enableRealtime !== undefined
+        ? options.enableRealtime
+        : enableRealtimeFromEnv !== undefined
+        ? enableRealtimeFromEnv
+        : true; // default real-time on unless disabled
   }
 
   // Send notification to a specific user
@@ -14,9 +24,11 @@ class NotificationService {
         recipient
       });
 
-      // Emit notification to the recipient's room
-      const roomId = `${recipient.role}:${recipient.id}`;
-      this.io.to(roomId).emit('new_notification', notification);
+      // Emit notification to the recipient's room (if enabled)
+      if (this.enableRealtime && this.io) {
+        const roomId = `${recipient.role}:${recipient.id}`;
+        this.io.to(roomId).emit('new_notification', notification);
+      }
       
       return notification;
     } catch (error) {

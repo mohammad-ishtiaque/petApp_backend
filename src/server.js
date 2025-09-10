@@ -9,7 +9,10 @@ const SocketService = require("./services/socket.service");
 const server = http.createServer(app);
 
 // Initialize Socket Service
+// const socketService = new SocketService(server);
 const socketService = new SocketService(server);
+app.set('socketService', socketService);
+
 
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.UNIVERSAL || '0.0.0.0';
