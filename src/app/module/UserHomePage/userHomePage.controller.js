@@ -80,18 +80,35 @@ exports.totalPetsForLoggedInUser = asyncHandler(async (req, res) => {
 });
 
 exports.allAdsWhichActive = asyncHandler(async (req, res) => {
-    const ads = await Advertisement.find({ status: 'ACTIVE' });
-    if (!ads.length) throw new ApiError('Ads not found', 404);
-    const adsPic = ads.map( ad => ad.advertisementImg);
-    res.status(200).json({
-        success: true,
-        message: 'Ads fetched successfully',
-        data:{
-            adsPic,
-            ads
-        }
-    });
+  const page = parseInt(req.query.page) || 1; // default page = 1
+  const limit = parseInt(req.query.limit) || 10; // default limit = 10
+  const skip = (page - 1) * limit;
+
+  // get total count
+  const totalAds = await Advertisement.countDocuments({ status: "ACTIVE" });
+
+  // fetch ads with pagination
+  const ads = await Advertisement.find({ status: "ACTIVE" })
+    .skip(skip)
+    .limit(limit);
+
+  if (!ads.length) throw new ApiError("Ads not found", 404);
+
+//   const adsPic = ads.map((ad) => ad.advertisementImg);
+
+  res.status(200).json({
+    success: true,
+    message: "Ads fetched successfully",
+    pagination: {
+      totalAds,
+      currentPage: page,
+      totalPages: Math.ceil(totalAds / limit),
+      limit,
+    },
+    ads
+  });
 });
+
 
 exports.getActiveAdsDetails = asyncHandler(async (req, res) => {
     const adsId = req.params.id;
