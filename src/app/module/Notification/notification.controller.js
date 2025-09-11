@@ -96,3 +96,24 @@ exports.deleteNotification = asyncHandler(async (req, res) => {
     message: 'Notification deleted successfully'
   });
 });
+
+// Get notifications with only title, type, message, and time sent
+exports.getSimpleNotifications = asyncHandler(async (req, res) => {
+  const { id: userId, role } = req.user;
+
+  // Find notifications for the user, select only required fields
+  const notifications = await Notification.find(
+    { 'recipient.id': userId, 'recipient.role': role, type: { $ne: 'MESSAGE' } },
+    { title: 1, type: 1, message: 1, createdAt: 1, _id: 0 }
+  ).sort({ createdAt: -1 });
+
+  res.json({
+    success: true,
+    data: notifications.map(n => ({
+      title: n.title,
+      type: n.type,
+      message: n.message,
+      time: n.createdAt
+    }))
+  });
+});

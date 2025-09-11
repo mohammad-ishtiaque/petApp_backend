@@ -4,7 +4,8 @@ const {
   getUserNotifications,
   markAsRead,
   markAllAsRead,
-  deleteNotification
+  deleteNotification,
+  getSimpleNotifications
 } = require("./notification.controller");
 const { authenticateOwnerAndUser } = require("../../middleware/auth.middleware");
 
@@ -22,5 +23,8 @@ router.put("/read-all", markAllAsRead);
 
 // Delete notification
 router.delete("/:id", deleteNotification);
+
+// Get notifications with only title, type, message, and time sent
+router.get("/simple", getSimpleNotifications);
 
 module.exports = router;
