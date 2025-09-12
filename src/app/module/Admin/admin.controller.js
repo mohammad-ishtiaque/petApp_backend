@@ -78,7 +78,7 @@ exports.updateAdminProfile = async (req, res) => {
 
         // If there's an uploaded file, add it to the update data
         if (req.file) {
-            updateData.profilePic = req.file.path.replace(/\\/g, '/').replace('public', '');
+            updateData.profilePic = req.file.location.replace(/\\/g, '/').replace('public', '');
         }
 
         // Find and update the admin

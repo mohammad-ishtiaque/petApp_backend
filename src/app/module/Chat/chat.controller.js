@@ -2,6 +2,8 @@
 const Message = require("./Chat");
 const {generateRoomId} = require("../../../utils/chatHandler");
 const Notification = require("../Notification/Notification");
+const User = require("../User/User");
+const Owner = require("../Owner/Owner");
 
 // Get messages for a chat room
 exports.getMessages = async (req, res, next) => {
@@ -22,8 +24,44 @@ exports.getMessages = async (req, res, next) => {
       
     const totalMessages = await Message.countDocuments({ roomId });
     
+    // Get unique sender and receiver IDs from messages
+    const senderIds = [...new Set(messages.map(msg => msg.sender.id))];
+    const receiverIds = [...new Set(messages.map(msg => msg.receiver.id))];
+    const allUserIds = [...new Set([...senderIds, ...receiverIds])];
+    
+    // Fetch user and owner details
+    const users = await User.find({ _id: { $in: allUserIds } })
+      .select('name profilePic role')
+      .lean();
+    const owners = await Owner.find({ _id: { $in: allUserIds } })
+      .select('name profilePic role')
+      .lean();
+    
+    // Create a lookup map for user details
+    const userDetailsMap = {};
+    [...users, ...owners].forEach(user => {
+      userDetailsMap[user._id.toString()] = {
+        name: user.name,
+        profilePic: user.profilePic,
+        role: user.role
+      };
+    });
+    
+    // Enhance messages with user details
+    const enhancedMessages = messages.map(msg => ({
+      ...msg,
+      sender: {
+        ...msg.sender,
+        ...userDetailsMap[msg.sender.id]
+      },
+      receiver: {
+        ...msg.receiver,
+        ...userDetailsMap[msg.receiver.id]
+      }
+    }));
+    
     res.json({
-      messages,
+      messages: enhancedMessages,
       pagination: {
         total: totalMessages,
         page: parseInt(page),
@@ -85,6 +123,8 @@ exports.saveMessage = async (sender, receiver, text, io = null) => {
 exports.getConversations = async (req, res, next) => {
   try {
     const { id: userId, role: userRole } = req.user;
+    const { limit = 20, page = 1 } = req.query;
+    const skip = (page - 1) * limit;
     
     // Get distinct conversations where user is either sender or receiver
     const conversations = await Message.aggregate([
@@ -130,10 +170,99 @@ exports.getConversations = async (req, res, next) => {
       },
       {
         $sort: { 'lastMessage.createdAt': -1 }
+      },
+      {
+        $skip: skip
+      },
+      {
+        $limit: parseInt(limit)
       }
     ]);
 
-    res.json(conversations);
+    // Get total count for pagination
+    const totalConversations = await Message.aggregate([
+      {
+        $match: {
+          $or: [
+            { 'sender.id': userId, 'sender.role': userRole.toUpperCase() },
+            { 'receiver.id': userId, 'receiver.role': userRole.toUpperCase() }
+          ]
+        }
+      },
+      {
+        $group: {
+          _id: '$roomId'
+        }
+      },
+      {
+        $count: 'total'
+      }
+    ]);
+
+    const total = totalConversations.length > 0 ? totalConversations[0].total : 0;
+
+    // Get unique user IDs from conversations
+    const allUserIds = [];
+    conversations.forEach(conv => {
+      allUserIds.push(conv.lastMessage.sender.id);
+      allUserIds.push(conv.lastMessage.receiver.id);
+    });
+    const uniqueUserIds = [...new Set(allUserIds)];
+
+    // Fetch user and owner details
+    const users = await User.find({ _id: { $in: uniqueUserIds } })
+      .select('name profilePic role')
+      .lean();
+    const owners = await Owner.find({ _id: { $in: uniqueUserIds } })
+      .select('name profilePic role')
+      .lean();
+    
+    // Create a lookup map for user details
+    const userDetailsMap = {};
+    [...users, ...owners].forEach(user => {
+      userDetailsMap[user._id.toString()] = {
+        name: user.name,
+        profilePic: user.profilePic,
+        role: user.role
+      };
+    });
+
+    // Enhance conversations with user details
+    const enhancedConversations = conversations.map(conv => {
+      const lastMessage = conv.lastMessage;
+      const otherUserId = lastMessage.sender.id.toString() === userId ? 
+        lastMessage.receiver.id : lastMessage.sender.id;
+      const otherUserRole = lastMessage.sender.id.toString() === userId ? 
+        lastMessage.receiver.role : lastMessage.sender.role;
+      
+      return {
+        ...conv,
+        lastMessage: {
+          ...lastMessage,
+          sender: {
+            ...lastMessage.sender,
+            ...userDetailsMap[lastMessage.sender.id]
+          },
+          receiver: {
+            ...lastMessage.receiver,
+            ...userDetailsMap[lastMessage.receiver.id]
+          }
+        },
+        otherUser: {
+          id: otherUserId,
+          ...userDetailsMap[otherUserId]
+        }
+      };
+    });
+
+    res.json({
+      conversations: enhancedConversations,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+      }
+    });
   } catch (error) {
     next(error);
   }

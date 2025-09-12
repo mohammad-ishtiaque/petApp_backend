@@ -17,7 +17,7 @@ exports.createAdvertisement = async (req, res, next) => {
         // console.log(businessType);
 
         const advertisement = new Advertisement({
-            advertisementImg: advertisementImg ? advertisementImg.map(file => file.path) : [],
+            advertisementImg: advertisementImg ? advertisementImg.map(file => file.location) : [],
             businessId,
             ownerId,
             businessType
@@ -61,7 +61,7 @@ exports.deleteAdvertisement = async (req, res, next) => {
         const advertisement = await Advertisement.findByIdAndDelete(advertisementId);
         if (!advertisement) throw new ApiError('Advertisement not found', 404);
         if (advertisement.advertisementImg.length > 0) {
-            await Promise.all(advertisement.advertisementImg.map(file => deleteFile(path.join(__dirname, '..', '..', '..', 'uploads', file))));
+            await Promise.all(advertisement.advertisementImg.map(file => deleteFile(location.join(__dirname, '..', '..', '..', 'uploads', file))));
         }
         return res.status(200).json({
             success: true,

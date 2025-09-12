@@ -55,7 +55,10 @@ const apiRoutes = [
   { path: '/api/terms-condition', route: require('./app/module/Dashboard/TermsCondition/termsCondition.router') },
   { path: '/api/user-home-page', route: require('./app/module/UserHomePage/userHomePage.router') },
   { path: '/api/chat', route: require('./app/module/Chat/chat.router') },
-  { path: '/api/notifications', route: require('./app/module/Notification/notification.router') }
+  { path: '/api/notifications', route: require('./app/module/Notification/notification.router') },
+  { path: '/api/manage', route: require('./app/module/Dashboard/Manage/manage.routes') }
+  // Add more routes as needed
+
 ];
 
 // Register all routes

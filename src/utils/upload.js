@@ -1,38 +1,41 @@
 const multer = require("multer");
+const multerS3 = require("multer-s3");
 const path = require("path");
+const s3 = require("../config/s3"); // 👈 your AWS S3 client
 const { ApiError } = require("../errors/errorHandler");
 
-// Storage engine (different folders for images and PDFs)
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, "uploads"); 
-    } else {
-      cb(new ApiError("Invalid file type", 400), false);
-    }
-  },
-  // In your upload middleware
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
+// Allowed file types
+const allowedImageTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
+const allowedPdfTypes = ["application/pdf"];
 
-// File filters (allow only images & PDFs)
+// File filter
 const fileFilter = (req, file, cb) => {
-  const allowedImageTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
-  if (allowedImageTypes.includes(file.mimetype) ) {
+  if (allowedImageTypes.includes(file.mimetype) || allowedPdfTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new ApiError("Only image (jpg, png, webp, jpeg) are allowed", 400), false);
+    cb(new ApiError("Only images (jpg, png, webp) and PDFs are allowed", 400), false);
   }
 };
 
-// File size limits (e.g., 5MB images, 50MB PDFs)
+// Multer-S3 storage
 const upload = multer({
-  storage,
+  storage: multerS3({
+    s3: s3,
+    bucket: process.env.AWS_BUCKET_NAME, // 👈 must exist in .env
+    acl: "private", // 👈 use "private" for signed URLs, "public-read" for direct access
+    key: (req, file, cb) => {
+      let folder = "others";
+      if (file.mimetype.startsWith("image/")) {
+        folder = "images";
+      } else if (file.mimetype === "application/pdf") {
+        folder = "pdfs";
+      }
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      cb(null, `${folder}/${uniqueSuffix}${path.extname(file.originalname)}`);
+    },
+  }),
   fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, 
+  limits: { fileSize: 100 * 1024 * 1024 }, // 10 MB
 });
 
 module.exports = upload;
