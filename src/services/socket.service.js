@@ -1,6 +1,7 @@
 const socketIO = require('socket.io');
 const NotificationService = require('./notification.service');
 const socketHandlers = require('../sockets');
+const tokenService = require('../utils/tokenService');
 
 class SocketService {
   constructor(server) {
@@ -24,6 +25,46 @@ class SocketService {
     
     console.log('SocketService initialized with connectedUsers:', this.connectedUsers);
     
+    // JWT handshake authentication
+    this.io.use((socket, next) => {
+      try {
+        // Support multiple ways to pass token: auth.token, query.token, headers.authorization
+        const { token: authToken } = socket.handshake.auth || {};
+        const queryToken = socket.handshake.query?.token;
+        const headerAuth = socket.handshake.headers?.authorization || socket.handshake.headers?.Authorization;
+        const headerToken = headerAuth?.startsWith('Bearer ')
+          ? headerAuth.slice('Bearer '.length)
+          : undefined;
+        const token = authToken || queryToken || headerToken;
+        if (!token) {
+          return next(new Error('Unauthorized'));
+        }
+
+        const payload = tokenService.verifyAccessToken(token);
+        const userId = payload?.id || payload?._id || payload?.userId;
+        const role = payload?.role;
+
+        if (!userId || !role) {
+          return next(new Error('Invalid token payload'));
+        }
+
+        const userRoom = `${role}:${userId}`;
+
+        // Attach to socket for downstream use
+        socket.data.userId = userId;
+        socket.data.role = role;
+        socket.data.userRoom = userRoom;
+
+        // Track and join personal room before connection handlers
+        this.connectedUsers.set(socket.id, { userId, role, userRoom });
+        socket.join(userRoom);
+
+        return next();
+      } catch (err) {
+        return next(err);
+      }
+    });
+
     // Initialize socket handling
     this.initializeSocket();
   }
@@ -35,10 +76,31 @@ class SocketService {
       console.log('New client connected:', socket.id);
       console.log('Current connected users:', [...this.connectedUsers.entries()]);
 
+      // If authenticated via handshake, acknowledge immediately
+      const authedUser = this.connectedUsers.get(socket.id);
+      if (authedUser) {
+        socket.emit('authenticated', {
+          success: true,
+          userId: authedUser.userId,
+          role: authedUser.role,
+          socketId: socket.id
+        });
+      }
+
       // Handle user authentication and room joining
       socket.on('authenticate', ({ userId, role }) => {
         console.log('Authentication attempt:', { socketId: socket.id, userId, role });
         
+        // If already authenticated via handshake, ignore for backward compatibility
+        if (this.connectedUsers.has(socket.id)) {
+          return socket.emit('authenticated', {
+            success: true,
+            userId: this.connectedUsers.get(socket.id).userId,
+            role: this.connectedUsers.get(socket.id).role,
+            socketId: socket.id
+          });
+        }
+
         if (!userId || !role) {
           console.error('Authentication failed: Missing userId or role');
           socket.emit('authentication_error', { message: 'Missing userId or role' });

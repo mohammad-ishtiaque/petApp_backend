@@ -5,8 +5,8 @@ const bcrypt = require('bcrypt');
 
 exports.makeAdmin = async (req, res, next) => {
     try {
-        const { userId } = req.body;
-        const admin = await Admin.findById(userId);
+        const { adminId } = req.body;
+        const admin = await Admin.findById(adminId);
         if (!admin) throw new ApiError('Admin not found', 404);
         admin.role = 'ADMIN';
         await admin.save();
@@ -18,8 +18,8 @@ exports.makeAdmin = async (req, res, next) => {
 
 exports.makeSuperAdmin = async (req, res, next) => {
     try {
-        const { userId } = req.body;
-        const admin = await Admin.findById(userId);
+        const { adminId } = req.body;
+        const admin = await Admin.findById(adminId);
         if (!admin) throw new ApiError('Admin not found', 404);
         admin.role = 'SUPER_ADMIN';
         await admin.save();
@@ -31,8 +31,8 @@ exports.makeSuperAdmin = async (req, res, next) => {
 
 exports.removeAdmin = async (req, res, next) => {
     try {
-        const { userId } = req.body;
-        const admin = await Admin.findById(userId);
+        const { adminId } = req.body;
+        const admin = await Admin.findById(adminId);
         if (!admin) throw new ApiError('Admin not found', 404);
         admin.role = 'USER';
         await admin.save();
@@ -44,8 +44,8 @@ exports.removeAdmin = async (req, res, next) => {
 
 exports.removeSuperAdmin = async (req, res, next) => {
     try {
-        const { userId } = req.body;
-        const admin = await Admin.findById(userId);
+        const { adminId } = req.body;
+        const admin = await Admin.findById(adminId);
         if (!admin) throw new ApiError('Admin not found', 404);
         admin.role = 'USER';
         await admin.save();
@@ -57,7 +57,9 @@ exports.removeSuperAdmin = async (req, res, next) => {
 
 exports.getProfile = async (req, res, next) => {
     try {
-        const admin = await Admin.findById(req.user.id || req.user._id);
+        const admin = await Admin.findById(req.admin.id || req.admin._id).select('-password');
+        console.log(admin);
+       
         if (!admin) throw new ApiError('Admin not found', 404);
         return res.status(200).json({ admin });
     } catch (error) {
@@ -67,7 +69,7 @@ exports.getProfile = async (req, res, next) => {
 
 exports.updateAdminProfile = async (req, res) => {
     try {
-        const id = req.user.id;
+        const id = req.admin.id;
 
         // Prepare update data
         const updateData = {
@@ -111,7 +113,7 @@ exports.updateAdminProfile = async (req, res) => {
 
 exports.changePassword = async (req, res) => {
     try {
-        const id = req.user.id;
+        const id = req.admin.id;
         const admin = await Admin.findById(id);
         if (!admin) throw new ApiError('Admin not found', 404);
         const isMatch = await bcrypt.compare(req.body.oldPassword, admin.password);

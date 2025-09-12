@@ -22,9 +22,9 @@ exports.createBusiness = async (req, res, next) => {
         if (owner.businesses) throw new ApiError('An owner can only create a single business', 400);
         // console.log(owner);
         // Handle file uploads
-        const shopLogo = req.files && req.files['shopLogo'] ? req.files['shopLogo'][0].path : null;
+        const shopLogo = req.files && req.files['shopLogo'] ? req.files['shopLogo'][0].location : null;
         const shopPics = req.files && req.files['shopPic'] 
-            ? req.files['shopPic'].map(file => file.path) 
+            ? req.files['shopPic'].map(file => file.location) 
             : [];
 
         const business = new Business({
@@ -33,8 +33,8 @@ exports.createBusiness = async (req, res, next) => {
             website,
             address,
             moreInfo,
-            shopLogo: shopLogo ? shopLogo.replace(/\\/g, '/') : null,
-            shopPic: shopPics.map(pic => pic.replace(/\\/g, '/'))
+            shopLogo: shopLogo ? shopLogo : null,
+            shopPic: shopPics.map(pic => pic)
         });
 
         await business.save();
@@ -96,20 +96,19 @@ exports.getBusinessById = async (req, res, next) => {
 
 exports.updateBusiness = async (req, res, next) => {
     const businessId = req.params.id;
-    const { businessName, businessType, website, address, moreInfo } = req.body;
+    const { businessName, website, address, moreInfo } = req.body;
     
     try {
         const business = await Business.findById(businessId);
         if (!business) throw new ApiError('Business not found', 404);
-        ll
         // Handle shopLogo update
         if (req.files && req.files['shopLogo']) {
             // Delete old logo if it exists
             if (business.shopLogo) {
-                await deleteFile(path.join(__dirname, '..', '..', '..', business.shopLogo));
+                await deleteFile(business.shopLogo);
             }
             // Update with new logo path (normalize path)
-            business.shopLogo = req.files['shopLogo'][0].path.replace(/\\/g, '/');
+            business.shopLogo = req.files['shopLogo'][0].location;
         }
         
         // Handle shopPic update
@@ -118,18 +117,18 @@ exports.updateBusiness = async (req, res, next) => {
             if (business.shopPic && business.shopPic.length > 0) {
                 await Promise.all(
                     business.shopPic.map(file => 
-                        deleteFile(path.join(__dirname, '..', '..', '..', file))
+                        deleteFile(file)
                     )
                 );
             }
             // Add new shop pictures (normalize paths)
-            business.shopPic = req.files['shopPic'].map(file => file.path.replace(/\\/g, '/'));
+            business.shopPic = req.files['shopPic'].map(file => file.location);
         }
         await business.save();
-        business.businessName = businessName;
-        business.website = website; 
-        business.address = address;
-        business.moreInfo = moreInfo;
+        business.businessName = businessName || business.businessName;
+        business.website = website || business.website; 
+        business.address = address || business.address;
+        business.moreInfo = moreInfo || business.moreInfo;
         await business.save();
         return res.status(200).json({
             success: true,
@@ -188,7 +187,7 @@ exports.addAdvertisement = async (req, res, next) => {
         const business = await Business.findById(businessId);
         // console.log(business);
         if (!business) throw new ApiError('Business not found', 404);
-        business.advertisementImg = advertisementImg ? advertisementImg.map(file => file.path) : []
+        business.advertisementImg = advertisementImg ? advertisementImg.map(file => file.location) : []
         await business.save();
         return res.status(200).json({
             success: true,

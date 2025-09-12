@@ -23,6 +23,18 @@ const upload = multer({
     s3: s3,
     bucket: process.env.AWS_BUCKET_NAME, // 👈 must exist in .env
     acl: "private", // 👈 use "private" for signed URLs, "public-read" for direct access
+    contentType: (req, file, cb) => {
+      // Let S3 detect content type automatically
+      cb(null, file.mimetype);
+    },
+    contentDisposition: (req, file, cb) => {
+      if (file.mimetype === "application/pdf" || file.mimetype.startsWith("image/")) {
+        // Force browser to open PDFs inline
+        cb(null, "inline");
+      } else {
+        cb(null, "attachment"); // others can download
+      }
+    },
     key: (req, file, cb) => {
       let folder = "others";
       if (file.mimetype.startsWith("image/")) {
