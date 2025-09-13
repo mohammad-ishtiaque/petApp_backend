@@ -3,7 +3,7 @@ const router = express.Router();
 
 const { getPetOwnerDetailsById, getAllPetOwners, blockPetOwner, unblockPetOwner } = require('./PetOwners/petOwners.controller');
 const { getBusinessOwnerDetailsById, getAllBusinessOwners, blockBusinessOwner, unblockBusinessOwner } = require('./BusinessOwner/businessOwner.controller');
-const { getAllBusiness, getAllBookingsByBusinessId } = require('./Booking/booking.dashboard');
+const { getAllBusiness, getAllBookingsByBusinessId, getAllServicesWithStats, getServiceBookingDetails } = require('./Booking/booking.dashboard');
 // const { getPetDetailsById, getAllPets, blockPet, unblockPet } = require('./pets.controller');   
 
 router.get('/pet-owner/:id', getPetOwnerDetailsById);
@@ -18,5 +18,9 @@ router.put('/business-owner/:id/unblock', unblockBusinessOwner);
 
 router.get('/business', getAllBusiness);
 router.get('/get-bookings-by-business/:id', getAllBookingsByBusinessId);
+
+// New service analytics routes
+router.get('/services-stats', getAllServicesWithStats);
+router.get('/service-bookings/:serviceId', getServiceBookingDetails);
 
 module.exports = router;

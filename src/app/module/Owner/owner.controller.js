@@ -125,7 +125,7 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
   const bookingId = req.params._id || req.params.id;
   const { status, cancellationReason } = req.body;
 
-  const validStatuses = ['APPROVED', 'COMPLETED', 'CANCELLED'];
+  const validStatuses = ['APPROVED', 'COMPLETED', 'REJECTED'];
   if (!validStatuses.includes(status)) {
     throw new ApiError(`Invalid booking status. Allowed: ${validStatuses.join(', ')}`, 400);
   }
@@ -142,7 +142,7 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
   }
 
   booking.bookingStatus = status;
-  if (status === 'CANCELLED') {
+  if (status === 'REJECTED') {
     booking.cancellationReason = cancellationReason || booking.cancellationReason;
   }
   await booking.save();
@@ -159,9 +159,9 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
       } else if (status === 'COMPLETED') {
         title = 'Booking Completed';
         message = 'Your booking has been completed.';
-      } else if (status === 'CANCELLED') {
-        title = 'Booking Cancelled';
-        message = cancellationReason ? `Your booking was cancelled. Reason: ${cancellationReason}` : 'Your booking was cancelled.';
+      } else if (status === 'REJECTED') {
+        title = 'Booking REJECTED';
+        message = cancellationReason ? `Your booking was REJECTED. Reason: ${cancellationReason}` : 'Your booking was REJECTED.';
       }
 
       await socketService.sendNotification(
