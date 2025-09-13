@@ -114,7 +114,7 @@ exports.getAllAds = async (req, res, next) => {
 
         let owner;
         advertisement.forEach(async (ad) => {
-            owner = await Owner.findById(ad.ownerId);
+            owner = await Owner.findById(ad.ownerId).select('-password');
             ad.owner = owner;
         });
 

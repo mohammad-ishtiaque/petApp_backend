@@ -38,7 +38,7 @@ exports.getAllHelps = asyncHandler(async (req, res, next) => {
 
 exports.updateHelp = asyncHandler(async (req, res, next) => {
     try {
-        const help = await Help.findByIdAndUpdate(req.params.id, { status: req.body.status === 'PENDING' ? 'COMPLETED' : 'PENDING' }, { new: true });
+        const help = await Help.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true });
         if (!help) throw new ApiError('Help not found', 404);
         res.status(200).json({
             success: true,
@@ -46,7 +46,10 @@ exports.updateHelp = asyncHandler(async (req, res, next) => {
             help
         });
     } catch (err) {
-        throw new ApiError(err.message, 500);
+        if (req.user.userType === 'ADMIN') {
+            throw new ApiError(err.message, 500);
+        }
+        throw new ApiError('You are not authorised to update help', 403);
     }
 });
 
