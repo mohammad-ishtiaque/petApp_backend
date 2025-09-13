@@ -86,6 +86,33 @@ exports.saveMessage = async (sender, receiver, text, io = null) => {
       roomId
     });
 
+    // Enrich sender/receiver with public details like in getMessages/getConversations
+    const userIds = [sender.id, receiver.id];
+    const [users, owners] = await Promise.all([
+      User.find({ _id: { $in: userIds } }).select('name profilePic role').lean(),
+      Owner.find({ _id: { $in: userIds } }).select('name profilePic role').lean()
+    ]);
+    const detailsMap = {};
+    [...users, ...owners].forEach(u => {
+      detailsMap[u._id.toString()] = {
+        name: u.name,
+        profilePic: u.profilePic,
+        role: u.role
+      };
+    });
+
+    const enrichedMsg = {
+      ...newMsg.toObject(),
+      sender: {
+        ...newMsg.sender,
+        ...detailsMap[newMsg.sender.id?.toString()]
+      },
+      receiver: {
+        ...newMsg.receiver,
+        ...detailsMap[newMsg.receiver.id?.toString()]
+      }
+    };
+
     // Create a notification for the receiver
     const notification = await Notification.create({
       recipient: receiver,
@@ -105,14 +132,14 @@ exports.saveMessage = async (sender, receiver, text, io = null) => {
 
     // Emit the new message to the room
     if (io) {
-      io.to(roomId).emit('new_message', newMsg);
+      io.to(roomId).emit('new_message', enrichedMsg);
       
       // Emit notification to the receiver
       const receiverRoom = `${receiver.role}:${receiver.id}`;
       io.to(receiverRoom).emit('new_notification', notification);
     }
 
-    return newMsg;
+    return enrichedMsg;
   } catch (error) {
     console.error('Error saving message:', error);
     throw error;

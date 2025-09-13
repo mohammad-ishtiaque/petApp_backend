@@ -85,6 +85,11 @@ class SocketService {
           role: authedUser.role,
           socketId: socket.id
         });
+
+        // Deliver pending messages for this user
+        setTimeout(() => {
+          socket.emit('user_online');
+        }, 1000); // Small delay to ensure socket handlers are initialized
       }
 
       // Handle user authentication and room joining
@@ -122,6 +127,11 @@ class SocketService {
           role,
           socketId: socket.id
         });
+
+        // Deliver pending messages for this user
+        setTimeout(() => {
+          socket.emit('user_online');
+        }, 1000); // Small delay to ensure socket handlers are initialized
       });
 
       // Initialize socket handlers with the socketService instance

@@ -94,7 +94,7 @@ exports.allAdsWhichActive = asyncHandler(async (req, res) => {
 
   if (!ads.length) throw new ApiError("Ads not found", 404);
 
-//   const adsPic = ads.map((ad) => ad.advertisementImg);
+  const adsPic = ads.map((ad) => ad.advertisementImg);
 
   res.status(200).json({
     success: true,
@@ -105,7 +105,8 @@ exports.allAdsWhichActive = asyncHandler(async (req, res) => {
       totalPages: Math.ceil(totalAds / limit),
       limit,
     },
-    ads
+    ads,
+    adsPic
   });
 });
 

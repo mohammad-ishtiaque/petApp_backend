@@ -23,25 +23,51 @@ module.exports = (io, socket, socketService) => {
   socket.on('join_room', (roomId) => {
     console.log(`[Chat] join_room request from socket ${socket.id} for room ${roomId}`);
     
-    if (!roomId) {
-      console.error('[Chat] No roomId provided to join_room');
-      return;
+    try {
+      if (!roomId) {
+        console.error('[Chat] No roomId provided to join_room');
+        socket.emit('room_join_error', { 
+          success: false,
+          message: 'No roomId provided',
+          socketId: socket.id
+        });
+        return;
+      }
+      
+      if (!socketService?.connectedUsers?.has(socket.id)) {
+        console.error('[Chat] Socket not authenticated, cannot join room');
+        socket.emit('room_join_error', { 
+          success: false,
+          message: 'Socket not authenticated',
+          socketId: socket.id
+        });
+        return;
+      }
+      
+      const userData = socketService.connectedUsers.get(socket.id);
+      console.log(`[Chat] User data for join_room:`, userData);
+      
+      socket.join(roomId);
+      console.log(`[Chat] Socket ${socket.id} (${userData?.role}:${userData?.userId}) joined room ${roomId}`);
+      
+      // Acknowledge room join
+      socket.emit('room_joined', { 
+        success: true, 
+        roomId,
+        socketId: socket.id,
+        userId: userData?.userId,
+        role: userData?.role
+      });
+      
+    } catch (error) {
+      console.error('[Chat] Error in join_room:', error);
+      socket.emit('room_join_error', { 
+        success: false,
+        message: 'Failed to join room',
+        details: error.message,
+        socketId: socket.id
+      });
     }
-    
-    if (!socketService?.connectedUsers?.has(socket.id)) {
-      console.error('[Chat] Socket not authenticated, cannot join room');
-      return;
-    }
-    
-    socket.join(roomId);
-    console.log(`[Chat] Socket ${socket.id} joined room ${roomId}`);
-    
-    // Acknowledge room join
-    socket.emit('room_joined', { 
-      success: true, 
-      roomId,
-      socketId: socket.id
-    });
   });
 
   // Leave a chat room
@@ -52,7 +78,7 @@ module.exports = (io, socket, socketService) => {
     console.log(`[Chat] Socket ${socket.id} left room ${roomId}`);
   });
 
-  // Handle new message
+  // Handle new message - SIMPLIFIED VERSION (No room dependency)
   socket.on('send_message', async ({ receiver, message }) => {
     console.log('[Chat] send_message event received:', { 
       socketId: socket.id,
@@ -91,22 +117,68 @@ module.exports = (io, socket, socketService) => {
 
       console.log('[Chat] Processing message from:', sender, 'to:', receiver);
       
-      // Save the message
+      // Save the message (returns enriched message)
       const newMessage = await saveMessage(sender, receiver, message, io);
       
-      // Generate room ID using the utility function (must be consistent for both sender and receiver)
+      // Generate room ID for database queries only (not for socket communication)
       const { generateRoomId } = require('../utils/chatHandler');
       const roomId = generateRoomId(sender, receiver);
-      
-      console.log('[Chat] Emitting receive_message to room:', roomId);
-      
-      // Send the message to the room
-      io.to(roomId).emit('receive_message', {
-        ...newMessage.toObject(),
-        roomId // Include roomId in the response
+
+      // Compute unread count for the receiver
+      const unreadCount = await Message.countDocuments({
+        roomId,
+        'receiver.id': receiver.id,
+        'receiver.role': receiver.role,
+        isRead: false
       });
+
+      // Build conversation-style payload for the receiver
+      const conversationPayloadForReceiver = {
+        lastMessage: newMessage, // already enriched
+        unreadCount,
+        roomId,
+        otherUser: {
+          id: newMessage.sender?.id,
+          name: newMessage.sender?.name,
+          profilePic: newMessage.sender?.profilePic,
+          role: newMessage.sender?.role
+        }
+      };
+
+      console.log('[Chat] Conversation payload:', JSON.stringify(conversationPayloadForReceiver, null, 2));
       
-      console.log('[Chat] Message sent successfully');
+      // STEP 1: Send confirmation to sender
+      socket.emit('message_sent', {
+        success: true,
+        message: 'Message sent successfully',
+        conversation: conversationPayloadForReceiver,
+        timestamp: new Date()
+      });
+      console.log('[Chat] Confirmation sent to sender');
+      
+      // STEP 2: Find receiver's socket and send message directly
+      const allConnectedUsers = Array.from(socketService.connectedUsers.entries());
+      console.log('[Chat] All connected users:', allConnectedUsers);
+      
+      let receiverSocket = null;
+      for (const [socketId, userData] of allConnectedUsers) {
+        if (userData.userId === receiver.id && userData.role === receiver.role) {
+          receiverSocket = io.sockets.sockets.get(socketId);
+          console.log(`[Chat] Found receiver socket: ${socketId} for user ${receiver.id}`);
+          break;
+        }
+      }
+      
+      if (receiverSocket) {
+        console.log('[Chat] Receiver is online, sending receive_message immediately');
+        receiverSocket.emit('receive_message', conversationPayloadForReceiver);
+        console.log('[Chat] receive_message sent successfully to receiver');
+      } else {
+        console.log('[Chat] Receiver is offline, message saved and will be delivered when they come online');
+        // Message is already saved in database, will be delivered when receiver connects
+      }
+      
+      console.log('[Chat] Message processing completed');
       
     } catch (error) {
       console.error('[Chat] Error in send_message:', error);
@@ -182,6 +254,69 @@ module.exports = (io, socket, socketService) => {
         message: 'Failed to mark messages as read',
         details: error.message
       });
+    }
+  });
+
+
+  // Function to deliver pending messages when user comes online
+  const deliverPendingMessages = async (userId, role, socket) => {
+    try {
+      console.log(`[Chat] Checking for pending messages for user ${userId} (${role})`);
+      
+      // Get all unread messages for this user
+      const pendingMessages = await Message.find({
+        'receiver.id': userId,
+        'receiver.role': role,
+        isRead: false
+      }).sort({ createdAt: -1 }).lean();
+
+      if (pendingMessages.length === 0) {
+        console.log(`[Chat] No pending messages for user ${userId}`);
+        return;
+      }
+
+      console.log(`[Chat] Found ${pendingMessages.length} pending messages for user ${userId}`);
+
+      // Group messages by conversation (roomId)
+      const conversations = {};
+      pendingMessages.forEach(msg => {
+        if (!conversations[msg.roomId]) {
+          conversations[msg.roomId] = {
+            lastMessage: msg,
+            unreadCount: 0,
+            roomId: msg.roomId,
+            otherUser: {
+              id: msg.sender.id,
+              name: msg.sender.name,
+              profilePic: msg.sender.profilePic,
+              role: msg.sender.role
+            }
+          };
+        }
+        conversations[msg.roomId].unreadCount++;
+      });
+
+      // Send each conversation to the user
+      Object.values(conversations).forEach(conversation => {
+        console.log(`[Chat] Delivering pending conversation for room ${conversation.roomId}`);
+        socket.emit('receive_message', conversation);
+      });
+
+      console.log(`[Chat] Delivered ${Object.keys(conversations).length} pending conversations to user ${userId}`);
+
+    } catch (error) {
+      console.error('[Chat] Error delivering pending messages:', error);
+    }
+  };
+
+  // Listen for user coming online and deliver pending messages
+  socket.on('user_online', async () => {
+    console.log('[Chat] user_online event received from socket:', socket.id);
+    
+    const userData = socketService.connectedUsers.get(socket.id);
+    if (userData) {
+      console.log(`[Chat] User ${userData.userId} (${userData.role}) is now online`);
+      await deliverPendingMessages(userData.userId, userData.role, socket);
     }
   });
 
