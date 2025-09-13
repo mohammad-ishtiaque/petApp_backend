@@ -121,6 +121,41 @@ exports.getAllBookingsByOwner = asyncHandler(async (req, res, next) => {
 });
 
 
+
+exports.getBookingsByOwnerWithStatusAndPagination = asyncHandler(async (req, res, next) => {
+  const ownerId = req.owner.id || req.owner._id;
+  const { status, page = 1, limit = 10 } = req.query;
+
+  const validStatuses = ['PENDING', 'COMPLETED', 'REJECTED', 'APPROVED', 'CANCELLED'];
+  if (status && !validStatuses.includes(status)) {
+    throw new ApiError(`Invalid booking status. Allowed: ${validStatuses.join(', ')}`, 400);
+  }
+
+  const totalBookings = await Booking.countDocuments({ ownerId, bookingStatus: status || { $exists: true } });
+  const totalPages = Math.ceil(totalBookings / limit);
+  const bookings = await Booking.find({ ownerId, bookingStatus: status || { $exists: true } })
+    .sort({ createdAt: -1 })
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .populate(
+      "serviceId",
+      "serviceType isOpenNow businessId shopLogo location phone servicesImages websiteLink"
+    )
+    .select('-__v');
+
+  res.status(200).json({
+    success: true,
+    message: 'Bookings fetched successfully',
+    bookings,
+    totalPages,
+    totalBookings,
+    currentPage: Number(page),
+    limit: Number(limit),
+  });
+});
+
+
+
 exports.updateBookingStatus = asyncHandler(async (req, res) => {
   const bookingId = req.params._id || req.params.id;
   const { status, cancellationReason } = req.body;

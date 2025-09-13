@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getOwnerDetails, updateOwnerProfile, deleteOwner, getOwnerBusinesses, getAllBookingsByOwner, updateBookingStatus, getBookingsByServiceType, getBookedPetsByOwner, gtPetDetailsByPetId } = require('./owner.controller');
+const { getOwnerDetails, updateOwnerProfile, deleteOwner, getOwnerBusinesses, getAllBookingsByOwner,getBookingsByOwnerWithStatusAndPagination, updateBookingStatus, getBookingsByServiceType, getBookedPetsByOwner, gtPetDetailsByPetId } = require('./owner.controller');
 const { authenticateOwner } = require('../../middleware/auth.middleware');
 const upload = require('../../../utils/upload');
 
@@ -13,6 +13,6 @@ router.put('/update-booking-status/:id', authenticateOwner, updateBookingStatus)
 router.get('/get-booking-by-sesrviceType', authenticateOwner, getBookingsByServiceType)
 router.get('/get-all-pets-who-booked', authenticateOwner, getBookedPetsByOwner)
 router.get('/get-pet-details-by-pet-id/:id', authenticateOwner, gtPetDetailsByPetId)
-
+router.get('/get-bookings-by-owner-with-status', authenticateOwner, getBookingsByOwnerWithStatusAndPagination)
 
 module.exports = router;
