@@ -22,7 +22,8 @@ const handleMulterError = (err, req, res, next) => {
   next();
 };
 
-router.get("/get-conversation", authenticateOwnerAndUser, ConversationController.getConversation)
+// router.get("/get-conversation", authenticateOwnerAndUser, ConversationController.getConversation)
+router.get("/get-conversation/:conversationId", authenticateOwnerAndUser, ConversationController.getConversationById)
 .get("/get-conversation-list", authenticateOwnerAndUser, ConversationController.getConversationList)
 .post("/block-toggle/:conversationId", authenticateOwnerAndUser, ConversationController.blockToggle)
 .post("/delete-message/:messageId", authenticateOwnerAndUser, ConversationController.deleteMessage)

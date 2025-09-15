@@ -281,12 +281,66 @@ const deleteMessage = catchAsync(async (req, res) => {
 
 
 
+// Get a conversation by its id (with messages)
+const getConversationById = catchAsync(async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+
+    if (!conversationId) {
+      return res.status(400).json({ success: false, message: "Missing conversation id" });
+    }
+
+    const conversation = await Conversation.findById(conversationId).populate({
+      path: "messages",
+      options: {
+        sort: { createdAt: -1 },
+        skip: (Number(page) - 1) * Number(limit),
+        limit: Number(limit),
+      },
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ success: false, message: "Conversation not found" });
+    }
+
+    const otherId = conversation.participants.find(p => p.toString() !== userId?.toString());
+    let partner = null;
+    if (otherId) {
+      partner = await User.findById(otherId).select("name profilePic address");
+      if (!partner) {
+        partner = await Owner.findById(otherId).select("name profilePic address");
+      }
+    }
+
+    const isBlockedByYou = conversation.blockedBy.includes(userId);
+    const isBlockedByPartner = otherId ? conversation.blockedBy.includes(otherId.toString()) : false;
+
+    return res.status(200).json({
+      success: true,
+      conversation,
+      participant: partner,
+      blockStatus: {
+        isBlockedByYou,
+        isBlockedByPartner,
+        isBlocked: isBlockedByYou || isBlockedByPartner,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching conversation by id:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+
 const ConversationController = {
   getConversation,
   getConversationList,
   blockToggle,
   chatImageVideo,
-  deleteMessage
+  deleteMessage,
+  getConversationById
 };
 
 module.exports = { ConversationController };
