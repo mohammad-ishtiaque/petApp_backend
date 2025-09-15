@@ -1,6 +1,6 @@
 const express = require("express");
 const { ConversationController } = require("./conversation.controller");
-const { authenticateUser } = require("../../middleware/auth.middleware");
+const { authenticateOwnerAndUser } = require("../../middleware/auth.middleware");
 
 const router = express.Router();
 
@@ -22,11 +22,11 @@ const handleMulterError = (err, req, res, next) => {
   next();
 };
 
-router.get("/get-conversation", authenticateUser, ConversationController.getConversation)
-.get("/get-conversation-list", authenticateUser, ConversationController.getConversationList)
-.post("/block-toggle/:conversationId", authenticateUser, ConversationController.blockToggle)
-.post("/delete-message/:messageId", authenticateUser, ConversationController.deleteMessage)
-.post("/chat-images-video", authenticateUser, uploadFields, handleMulterError, ConversationController.chatImageVideo);
+router.get("/get-conversation", authenticateOwnerAndUser, ConversationController.getConversation)
+.get("/get-conversation-list", authenticateOwnerAndUser, ConversationController.getConversationList)
+.post("/block-toggle/:conversationId", authenticateOwnerAndUser, ConversationController.blockToggle)
+.post("/delete-message/:messageId", authenticateOwnerAndUser, ConversationController.deleteMessage)
+.post("/chat-images-video", authenticateOwnerAndUser, uploadFields, handleMulterError, ConversationController.chatImageVideo);
 
 
 module.exports = router;

@@ -4,7 +4,8 @@ const { HTTP_STATUS } = require("../../../utils/enum");
 const Conversation = require("./conversation.model");
 const User = require("../User/User");
 const { onlineUsers } = require('../../../sockets/SocketConnection');
-const Message = require('./message.model')
+const Message = require('./message.model');
+const Owner = require("../Owner/Owner");
 
 const getConversation = catchAsync(async (req, res) => {
   try {
@@ -74,7 +75,8 @@ const getConversationList = catchAsync(async (req, res) => {
     const skip = (page - 1) * limit;
 
     // Find the user
-    const user = await User.findById(userId);
+    let user;
+    user = await User?.findById(userId) || await Owner?.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -262,7 +264,7 @@ const deleteMessage = catchAsync(async (req, res) => {
     });
   }
 
-  if (message.sender.toString() !== userId.toString()) {
+  if (message.sender !== userId) {
     return res.status(403).json({
       success: false,
       message: "You are not authorized to delete this message",
