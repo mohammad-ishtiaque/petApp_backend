@@ -247,14 +247,14 @@ socket.on("cancel-waiting", (data) => {
       await emitMessage(
         receiverId,
         newMessage,
-        `${ENUM_SOCKET_EVENT.MESSAGE_NEW}/${receiverId}`,
+        `${ENUM_SOCKET_EVENT.MESSAGE_NEW}/${senderId}`,
         io
       );
       // Emit echo to sender's room with sender-specific event
       await emitMessage(
         senderId,
         newMessage,
-        `${ENUM_SOCKET_EVENT.MESSAGE_NEW}/${senderId}`,
+        `${ENUM_SOCKET_EVENT.MESSAGE_NEW}/${receiverId}`,
         io
       );
 
