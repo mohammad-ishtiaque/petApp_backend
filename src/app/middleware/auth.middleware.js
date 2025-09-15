@@ -8,6 +8,9 @@ const Admin = require('../module/Admin/Admin');
 /**
  * Middleware to authenticate users only
  */
+
+
+
 const authenticateUser = asyncHandler(async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {

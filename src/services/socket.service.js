@@ -2,6 +2,7 @@ const socketIO = require('socket.io');
 const NotificationService = require('./notification.service');
 const socketHandlers = require('../sockets');
 const tokenService = require('../utils/tokenService');
+const { socket: initSocketConnection } = require('../sockets/SocketConnection');
 
 class SocketService {
   constructor(server) {
@@ -25,8 +26,8 @@ class SocketService {
     
     console.log('SocketService initialized with connectedUsers:', this.connectedUsers);
     
-    // JWT handshake authentication
-    this.io.use((socket, next) => {
+    // JWT handshake authentication for DEFAULT namespace only
+    this.io.of('/').use((socket, next) => {
       try {
         // Support multiple ways to pass token: auth.token, query.token, headers.authorization
         const { token: authToken } = socket.handshake.auth || {};
@@ -64,6 +65,14 @@ class SocketService {
         return next(err);
       }
     });
+
+    // Initialize your new SocketConnection on a separate namespace without JWT middleware
+    try {
+      const rtNamespace = this.io.of('/rt');
+      initSocketConnection(rtNamespace);
+    } catch (e) {
+      console.error('Failed to initialize SocketConnection:', e);
+    }
 
     // Initialize socket handling
     this.initializeSocket();

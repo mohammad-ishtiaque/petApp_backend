@@ -6,14 +6,15 @@ const { ApiError } = require("../errors/errorHandler");
 
 // Allowed file types
 const allowedImageTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
+const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/x-matroska", "video/webm"];
 const allowedPdfTypes = ["application/pdf"];
 
 // File filter
 const fileFilter = (req, file, cb) => {
-  if (allowedImageTypes.includes(file.mimetype) || allowedPdfTypes.includes(file.mimetype)) {
+  if (allowedImageTypes.includes(file.mimetype) || allowedVideoTypes.includes(file.mimetype) || allowedPdfTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new ApiError("Only images (jpg, png, webp) and PDFs are allowed", 400), false);
+    cb(new ApiError("Only images (jpg, png, webp), videos (mp4, mov, mkv, webm) and PDFs are allowed", 400), false);
   }
 };
 
@@ -39,6 +40,8 @@ const upload = multer({
       let folder = "others";
       if (file.mimetype.startsWith("image/")) {
         folder = "images";
+      } else if (file.mimetype.startsWith("video/")) {
+        folder = "videos";
       } else if (file.mimetype === "application/pdf") {
         folder = "pdfs";
       }
@@ -47,7 +50,7 @@ const upload = multer({
     },
   }),
   fileFilter,
-  limits: { fileSize: 100 * 1024 * 1024 }, // 10 MB
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB
 });
 
 module.exports = upload;
