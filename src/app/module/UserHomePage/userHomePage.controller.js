@@ -316,18 +316,17 @@ exports.searchServices = asyncHandler(async (req, res) => {
     if (searchQuery) {
         // Case-insensitive search on service name and description
         filter.$or = [
-            { serviceName: { $regex: searchQuery, $options: 'i' } },
-            { description: { $regex: searchQuery, $options: 'i' } }
+            { serviceName: { $regex: searchQuery, $options: 'i' } }
         ];
     }
 
-    if (serviceType) {
-        filter.serviceType = serviceType.toUpperCase();
-    }
+    // if (serviceType) {
+    //     filter.serviceType = serviceType.toUpperCase();
+    // }
 
-    if (location) {
-        filter.location = { $regex: location, $options: 'i' };
-    }
+    // if (location) {
+    //     filter.location = { $regex: location, $options: 'i' };
+    // }
 
     // Find initial services based on DB filters
     let services = await Service.find(filter).lean().populate('reviews', 'rating');
@@ -347,9 +346,9 @@ exports.searchServices = asyncHandler(async (req, res) => {
     });
 
     // In-memory filter for isOpen
-    if (isOpen === 'true') {
-        servicesWithStatus = servicesWithStatus.filter(service => service.isOpenNow);
-    }
+    // if (isOpen === 'true') {
+    //     servicesWithStatus = servicesWithStatus.filter(service => service.isOpenNow);
+    // }
 
     // Sorting
     if (sortBy) {
