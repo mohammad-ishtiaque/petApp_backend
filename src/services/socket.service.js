@@ -89,7 +89,7 @@ class SocketService {
         // Deliver pending messages for this user
         setTimeout(() => {
           socket.emit('user_online');
-        }, 1000); // Small delay to ensure socket handlers are initialized
+        }, 500); // Reduced delay to ensure socket handlers are initialized
       }
 
       // Handle user authentication and room joining
@@ -131,7 +131,7 @@ class SocketService {
         // Deliver pending messages for this user
         setTimeout(() => {
           socket.emit('user_online');
-        }, 1000); // Small delay to ensure socket handlers are initialized
+        }, 500); // Reduced delay to ensure socket handlers are initialized
       });
 
       // Initialize socket handlers with the socketService instance
@@ -160,6 +160,32 @@ class SocketService {
   async sendNotification(recipient, notificationData) {
     console.log('Sending notification:', { recipient, notificationData });
     return this.notificationService.sendToUser(recipient, notificationData);
+  }
+
+  // Method to find socket by user ID and role
+  findUserSocket(userId, role) {
+    const userIdStr = userId?.toString();
+    for (const [socketId, userData] of this.connectedUsers.entries()) {
+      const userDataIdStr = userData.userId?.toString();
+      if (userDataIdStr === userIdStr && userData.role === role) {
+        return this.io.sockets.sockets.get(socketId);
+      }
+    }
+    return null;
+  }
+
+  // Method to send message to specific user
+  sendToUser(userId, role, event, data) {
+    const socket = this.findUserSocket(userId, role);
+    if (socket) {
+      socket.emit(event, data);
+      return true;
+    }
+    
+    // Fallback: send via room
+    const userRoom = `${role}:${userId}`;
+    this.io.to(userRoom).emit(event, data);
+    return false; // Indicates user was offline, sent via room
   }
 }
 

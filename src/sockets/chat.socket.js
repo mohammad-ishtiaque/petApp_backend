@@ -156,26 +156,21 @@ module.exports = (io, socket, socketService) => {
       });
       console.log('[Chat] Confirmation sent to sender');
       
-      // STEP 2: Find receiver's socket and send message directly
-      const allConnectedUsers = Array.from(socketService.connectedUsers.entries());
-      console.log('[Chat] All connected users:', allConnectedUsers);
+      // STEP 2: Send message to receiver using improved socket service methods
+      console.log('[Chat] Sending message to receiver:', receiver);
       
-      let receiverSocket = null;
-      for (const [socketId, userData] of allConnectedUsers) {
-        if (userData.userId === receiver.id && userData.role === receiver.role) {
-          receiverSocket = io.sockets.sockets.get(socketId);
-          console.log(`[Chat] Found receiver socket: ${socketId} for user ${receiver.id}`);
-          break;
-        }
-      }
+      // Use the new socket service method for reliable delivery
+      const isOnline = socketService.sendToUser(
+        receiver.id, 
+        receiver.role, 
+        'receive_message', 
+        conversationPayloadForReceiver
+      );
       
-      if (receiverSocket) {
-        console.log('[Chat] Receiver is online, sending receive_message immediately');
-        receiverSocket.emit('receive_message', conversationPayloadForReceiver);
-        console.log('[Chat] receive_message sent successfully to receiver');
+      if (isOnline) {
+        console.log('[Chat] Receiver is online, message sent successfully');
       } else {
-        console.log('[Chat] Receiver is offline, message saved and will be delivered when they come online');
-        // Message is already saved in database, will be delivered when receiver connects
+        console.log('[Chat] Receiver is offline, message sent via room and will be delivered when they come online');
       }
       
       console.log('[Chat] Message processing completed');
@@ -296,13 +291,21 @@ module.exports = (io, socket, socketService) => {
         conversations[msg.roomId].unreadCount++;
       });
 
-      // Send each conversation to the user
-      Object.values(conversations).forEach(conversation => {
-        console.log(`[Chat] Delivering pending conversation for room ${conversation.roomId}`);
+      // Send each conversation to the user with a small delay to ensure socket is ready
+      const conversationArray = Object.values(conversations);
+      for (let i = 0; i < conversationArray.length; i++) {
+        const conversation = conversationArray[i];
+        console.log(`[Chat] Delivering pending conversation ${i + 1}/${conversationArray.length} for room ${conversation.roomId}`);
+        
+        // Add small delay between messages to prevent overwhelming the client
+        if (i > 0) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
         socket.emit('receive_message', conversation);
-      });
+      }
 
-      console.log(`[Chat] Delivered ${Object.keys(conversations).length} pending conversations to user ${userId}`);
+      console.log(`[Chat] Delivered ${conversationArray.length} pending conversations to user ${userId}`);
 
     } catch (error) {
       console.error('[Chat] Error delivering pending messages:', error);
@@ -317,6 +320,25 @@ module.exports = (io, socket, socketService) => {
     if (userData) {
       console.log(`[Chat] User ${userData.userId} (${userData.role}) is now online`);
       await deliverPendingMessages(userData.userId, userData.role, socket);
+    }
+  });
+
+  // Heartbeat mechanism to keep connection alive and verify user is still authenticated
+  socket.on('ping', () => {
+    const userData = socketService.connectedUsers.get(socket.id);
+    if (userData) {
+      socket.emit('pong', { 
+        success: true, 
+        userId: userData.userId, 
+        role: userData.role,
+        timestamp: new Date()
+      });
+    } else {
+      socket.emit('pong', { 
+        success: false, 
+        message: 'User not authenticated',
+        timestamp: new Date()
+      });
     }
   });
 
