@@ -1,5 +1,11 @@
 function generateRoomId(sender, receiver) {
-    return [ `${sender.role}:${sender.id}`, `${receiver.role}:${receiver.id}` ]
+    const normalize = (party) => {
+      const role = (party?.role || '').toUpperCase();
+      const id = party?.id?.toString();
+      return `${role}:${id}`;
+    };
+
+    return [ normalize(sender), normalize(receiver) ]
       .sort()
       .join("_");
   }
