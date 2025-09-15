@@ -42,7 +42,7 @@ class SocketService {
 
         const payload = tokenService.verifyAccessToken(token);
         const userId = payload?.id || payload?._id || payload?.userId;
-        const role = payload?.role;
+        const role = (payload?.role || '').toUpperCase();
 
         if (!userId || !role) {
           return next(new Error('Invalid token payload'));
@@ -106,14 +106,15 @@ class SocketService {
           });
         }
 
-        if (!userId || !role) {
+        const normalizedRole = (role || '').toUpperCase();
+        if (!userId || !normalizedRole) {
           console.error('Authentication failed: Missing userId or role');
           socket.emit('authentication_error', { message: 'Missing userId or role' });
           return;
         }
 
-        const userRoom = `${role}:${userId}`;
-        this.connectedUsers.set(socket.id, { userId, role, userRoom });
+        const userRoom = `${normalizedRole}:${userId}`;
+        this.connectedUsers.set(socket.id, { userId, role: normalizedRole, userRoom });
         
         // Join user's personal room for notifications
         socket.join(userRoom);
@@ -124,7 +125,7 @@ class SocketService {
         socket.emit('authenticated', { 
           success: true, 
           userId, 
-          role,
+          role: normalizedRole,
           socketId: socket.id
         });
 
@@ -165,9 +166,10 @@ class SocketService {
   // Method to find socket by user ID and role
   findUserSocket(userId, role) {
     const userIdStr = userId?.toString();
+    const normalizedRole = (role || '').toUpperCase();
     for (const [socketId, userData] of this.connectedUsers.entries()) {
       const userDataIdStr = userData.userId?.toString();
-      if (userDataIdStr === userIdStr && userData.role === role) {
+      if (userDataIdStr === userIdStr && (userData.role || '').toUpperCase() === normalizedRole) {
         return this.io.sockets.sockets.get(socketId);
       }
     }
@@ -176,14 +178,15 @@ class SocketService {
 
   // Method to send message to specific user
   sendToUser(userId, role, event, data) {
-    const socket = this.findUserSocket(userId, role);
+    const normalizedRole = (role || '').toUpperCase();
+    const socket = this.findUserSocket(userId, normalizedRole);
     if (socket) {
       socket.emit(event, data);
       return true;
     }
     
     // Fallback: send via room
-    const userRoom = `${role}:${userId}`;
+    const userRoom = `${normalizedRole}:${userId}`;
     this.io.to(userRoom).emit(event, data);
     return false; // Indicates user was offline, sent via room
   }
