@@ -36,7 +36,7 @@ const socket = async (io) => {
     
     if (removedUser) {
         waitingUsers = waitingUsers.filter(user => user.id !== currentUserId);
-        console.log(`User ${removedUser.id} removed from waiting list.`);
+        // console.log(`User ${removedUser.id} removed from waiting list.`);
     } else {
         console.log(`User ${currentUserId} not found in waiting list.`);
     }
@@ -48,10 +48,10 @@ async function onEvent(socket, io, onlineUsers) {
 
   socket.on("join-random", (data) => {
 
-    console.log(socket.id);
+    // console.log(socket.id);
   
   
-    console.log(`User ${data.currentUserId} requested random match`);
+    // console.log(`User ${data.currentUserId} requested random match`);
 
     if (waitingUsers.some(user => user.id === data.currentUserId)) {
       console.log(`User ${data.currentUserId} is already in the waiting list`);
@@ -200,9 +200,9 @@ socket.on("cancel-waiting", (data) => {
       const sender = await findAccountById(senderId);
       const receiver = await findAccountById(receiverId);
 
-      if (!sender || !receiver) {
-        console.log("User lookup result:", { senderFound: !!sender, receiverFound: !!receiver, senderId, receiverId });
-      }
+    //   if (!sender || !receiver) {
+    //     console.log("User lookup result:", { senderFound: !!sender, receiverFound: !!receiver, senderId, receiverId });
+    //   }
   
       if (!sender || !receiver) {
         console.log("User not found in socket");
@@ -321,7 +321,7 @@ socket.on("cancel-waiting", (data) => {
 const emitMessage = async (receiver, data, emit_message, io) => {
   if (io) {
     const roomSize = io.sockets.adapter.rooms.get(receiver.toString())?.size || 0;
-    console.log(`Emitting to room ${receiver} (size=${roomSize}) event=${emit_message}`);
+    // console.log(`Emitting to room ${receiver} (size=${roomSize}) event=${emit_message}`);
     await io.to(receiver.toString()).emit(emit_message, data);
   } else {
     console.error("Socket.IO is not initialized");

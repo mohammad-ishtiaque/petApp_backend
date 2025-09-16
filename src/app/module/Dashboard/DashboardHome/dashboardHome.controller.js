@@ -6,43 +6,126 @@ const BusinessServices = require('../../BusinessServices/Services');
 const { ApiError } = require('../../../../errors/errorHandler');
 const asyncHandler = require('../../../../utils/asyncHandler');
 
+// Optimized Helper function to get monthly growth data using MongoDB Aggregation
+async function getMonthlyGrowthData(Model, year, role = null) {
+    const matchQuery = {
+        createdAt: {
+            $gte: new Date(year, 0, 1),
+            $lte: new Date(year, 11, 31, 23, 59, 59)
+        }
+    };
+
+    if (role) {
+        matchQuery.role = role;
+    }
+
+    const monthlyData = await Model.aggregate([
+        { $match: matchQuery },
+        {
+            $group: {
+                _id: { $month: '$createdAt' },
+                count: { $sum: 1 }
+            }
+        },
+        { $sort: { '_id': 1 } }
+    ]);
+
+    const monthlyCounts = Array(12).fill(0);
+    monthlyData.forEach(item => {
+        monthlyCounts[item._id - 1] = item.count;
+    });
+
+    let cumulativeCount = 0;
+    const result = monthlyCounts.map((count, index) => {
+        cumulativeCount += count;
+        return {
+            month: new Date(year, index).toLocaleString('en-US', { month: 'short' }),
+            count: count,
+            cumulative: cumulativeCount
+        };
+    });
+
+    return result;
+}
+
 // Unified Dashboard API - Consolidates all dashboard metrics into a single endpoint
 exports.getDashboardStats = asyncHandler(async (req, res, next) => {
     try {
         // Get year from query parameter or default to current year
         const currentYear = parseInt(req.query.year) || new Date().getFullYear();
-        const currentMonth = new Date().getMonth();
-        
-        // Calculate Total Users (Pet Owners)
-        const totalUsers = await User.countDocuments({ role: 'USER' });
-        
-        // Calculate Total Sellers/Owners (Business Owners)
-        const totalSellers = await Owner.countDocuments({ role: 'OWNER' });
-        
-        // Calculate Total Income (using completed bookings as proxy since no pricing model exists)
-        const totalCompletedBookings = await Booking.countDocuments({ 
-            bookingStatus: 'COMPLETED' 
-        });
-        // Assuming average booking value for demonstration
+
+        // Perform all aggregations in parallel
+        const [
+            totalUsers,
+            totalSellers,
+            bookingStats,
+            totalSubscribers,
+            monthlyUserGrowth,
+            monthlySellerGrowth,
+            recentBusinesses,
+            additionalStats
+        ] = await Promise.all([
+            User.countDocuments({ role: 'USER' }),
+            Owner.countDocuments({ role: 'OWNER' }),
+            Booking.aggregate([
+                {
+                    $group: {
+                        _id: null,
+                        totalBookings: { $sum: 1 },
+                        completedBookings: {
+                            $sum: {
+                                $cond: [{ $eq: ['$bookingStatus', 'COMPLETED'] }, 1, 0]
+                            }
+                        },
+                        pendingBookings: {
+                            $sum: {
+                                $cond: [{ $eq: ['$bookingStatus', 'PENDING'] }, 1, 0]
+                            }
+                        }
+                    }
+                }
+            ]),
+            User.countDocuments({ isVerified: true }),
+            getMonthlyGrowthData(User, currentYear, 'USER'),
+            getMonthlyGrowthData(Owner, currentYear, 'OWNER'),
+            Owner.find()
+                .populate('businesses', 'businessName')
+                .select('name email phone address createdAt')
+                .sort({ createdAt: -1 })
+                .limit(10),
+            Business.aggregate([
+                {
+                    $group: {
+                        _id: null,
+                        totalBusinesses: { $sum: 1 }
+                    }
+                }
+            ]).then(async result => {
+                const serviceStats = await BusinessServices.aggregate([
+                    {
+                        $group: {
+                            _id: null,
+                            totalServices: { $sum: 1 },
+                            activeServices: {
+                                $sum: {
+                                    $cond: [{ $eq: ['$isActive', true] }, 1, 0]
+                                }
+                            }
+                        }
+                    }
+                ]);
+                return {
+                    totalBusinesses: result.length > 0 ? result[0].totalBusinesses : 0,
+                    totalServices: serviceStats.length > 0 ? serviceStats[0].totalServices : 0,
+                    activeServices: serviceStats.length > 0 ? serviceStats[0].activeServices : 0
+                };
+            })
+        ]);
+
+        const { totalBookings = 0, completedBookings = 0, pendingBookings = 0 } = bookingStats[0] || {};
         const averageBookingValue = 50; // This should be replaced with actual pricing logic
-        const totalIncome = totalCompletedBookings * averageBookingValue;
-        
-        // Calculate Total Subscribers (using verified users as proxy)
-        const totalSubscribers = await User.countDocuments({ 
-            isVerified: true 
-        });
-        
-        // Get monthly growth data for charts
-        const monthlyUserGrowth = await getMonthlyGrowthData(User, currentYear, 'USER');
-        const monthlySellerGrowth = await getMonthlyGrowthData(Owner, currentYear, 'OWNER');
-        
-        // Get recent business owner requests
-        const recentBusinesses = await Owner.find()
-            .populate('businesses', 'businessName')
-            .select('name email phone address createdAt')
-            .sort({ createdAt: -1 })
-            .limit(10);
-        
+        const totalIncome = completedBookings * averageBookingValue;
+
         // Format business requests for frontend
         const formattedBusinesses = recentBusinesses.map((owner, index) => ({
             no: index + 1,
@@ -63,7 +146,7 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
                 totalIncome,
                 totalSellers,
                 totalSubscribers,
-                
+
                 // Growth charts data
                 userGrowth: {
                     year: currentYear,
@@ -73,17 +156,17 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
                     year: currentYear,
                     monthlyData: monthlySellerGrowth
                 },
-                
+
                 // Business owner requests table
                 businessOwners: formattedBusinesses,
-                
+
                 // Additional metrics
                 additionalStats: {
-                    totalBookings: await Booking.countDocuments(),
-                    pendingBookings: await Booking.countDocuments({ bookingStatus: 'PENDING' }),
-                    totalBusinesses: await Business.countDocuments(),
-                    totalServices: await BusinessServices.countDocuments(),
-                    activeServices: await BusinessServices.countDocuments({ isActive: true })
+                    totalBookings,
+                    pendingBookings,
+                    totalBusinesses: additionalStats.totalBusinesses,
+                    totalServices: additionalStats.totalServices,
+                    activeServices: additionalStats.activeServices
                 }
             }
         });
@@ -92,74 +175,38 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
     }
 });
 
-// Helper function to get monthly growth data
-async function getMonthlyGrowthData(Model, year, role = null) {
-    const monthlyData = [];
-    
-    for (let month = 0; month < 12; month++) {
-        const startDate = new Date(year, month, 1);
-        const endDate = new Date(year, month + 1, 0);
-        
-        const query = {
-            createdAt: {
-                $gte: startDate,
-                $lte: endDate
-            }
-        };
-        
-        if (role) {
-            query.role = role;
-        }
-        
-        const count = await Model.countDocuments(query);
-        
-        monthlyData.push({
-            month: startDate.toLocaleDateString('en-US', { month: 'short' }),
-            count: count,
-            // Add cumulative count for area charts
-            cumulative: await Model.countDocuments({
-                createdAt: { $lte: endDate },
-                ...(role && { role })
-            })
-        });
-    }
-    
-    return monthlyData;
-}
-
 // Get dashboard overview with year filter
 exports.getDashboardOverview = asyncHandler(async (req, res, next) => {
     try {
         const year = parseInt(req.query.year) || new Date().getFullYear();
-        
-        // Get yearly statistics
         const yearStart = new Date(year, 0, 1);
-        const yearEnd = new Date(year, 11, 31);
-        
-        const yearlyStats = {
-            newUsers: await User.countDocuments({
-                createdAt: { $gte: yearStart, $lte: yearEnd },
-                role: 'USER'
-            }),
-            newSellers: await Owner.countDocuments({
-                createdAt: { $gte: yearStart, $lte: yearEnd },
-                role: 'OWNER'
-            }),
-            yearlyBookings: await Booking.countDocuments({
-                createdAt: { $gte: yearStart, $lte: yearEnd }
-            }),
-            yearlyRevenue: await Booking.countDocuments({
-                createdAt: { $gte: yearStart, $lte: yearEnd },
-                bookingStatus: 'COMPLETED'
-            }) * 50 // Assuming average booking value
-        };
-        
+        const yearEnd = new Date(year, 11, 31, 23, 59, 59);
+
+        const matchYear = { createdAt: { $gte: yearStart, $lte: yearEnd } };
+
+        const [
+            newUsers,
+            newSellers,
+            yearlyBookings,
+            yearlyCompletedBookings
+        ] = await Promise.all([
+            User.countDocuments({ ...matchYear, role: 'USER' }),
+            Owner.countDocuments({ ...matchYear, role: 'OWNER' }),
+            Booking.countDocuments(matchYear),
+            Booking.countDocuments({ ...matchYear, bookingStatus: 'COMPLETED' })
+        ]);
+
+        const yearlyRevenue = yearlyCompletedBookings * 50; // Assuming average booking value
+
         res.status(200).json({
             success: true,
             message: `Dashboard overview for ${year} fetched successfully`,
             data: {
                 year,
-                ...yearlyStats
+                newUsers,
+                newSellers,
+                yearlyBookings,
+                yearlyRevenue
             }
         });
     } catch (err) {

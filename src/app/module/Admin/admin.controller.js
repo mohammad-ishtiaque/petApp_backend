@@ -141,8 +141,8 @@ exports.changePassword = async (req, res) => {
     const superAdmin = await Admin.findOne({ role: 'SUPER_ADMIN' });
     if (!superAdmin) {
         const newSuperAdmin = new Admin({
-            name: 'Super Admin',
-            email: 'superadmin@example.com',
+            name: 'Aman',
+            email: 'mdshahamanpatwary@gmail.com',
             password: await bcrypt.hash('superadmin123', 10),
             role: 'SUPER_ADMIN'
         });
