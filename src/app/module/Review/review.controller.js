@@ -50,15 +50,25 @@ exports.getReview = asyncHandler(async (req, res, next) => {
 
 
 exports.getAllReviewsByBusinessId = asyncHandler(async (req, res, next) => {
-    const reviews = await Review.find({ businessId: req.params.id });   
+    const reviews = await Review.find({ businessId: req.params.id });
 
     if (!reviews) {
         return next(new ApiError('Reviews not found', 404));
     }
+
+    // Calculate average rating
+    let avgRating = 0;
+    if (reviews.length > 0) {
+        avgRating = reviews.reduce((acc, review) => acc + (review.rating || 0), 0) / reviews.length;
+        avgRating = Number(avgRating.toFixed(1));
+    }
+
     res.status(200).json({
         success: true,
         message: 'Reviews fetched successfully',
-        reviews
+        avgRating,
+        reviews,
+        totalReviews: reviews.length
     });
 });
 

@@ -284,3 +284,55 @@ exports.gtPetDetailsByPetId = asyncHandler(async (req, res) => {
   });
 });
 
+exports.getOwnerReviewsWithAvg = async (req, res, next) => {
+  try {
+    const ownerId = req.params.id || req.params._id;
+
+    // Find all services for this owner
+    const services = await Service.find({ ownerId }).select('_id name');
+    const serviceIds = services.map(s => s._id);
+
+    // For each service, get its reviews and calculate avg rating
+    const serviceReviews = await Promise.all(
+      services.map(async (service) => {
+        // Find bookings for this service that have reviews
+        const bookingsWithReviews = await Booking.find({
+          serviceId: service._id,
+          review: { $exists: true, $ne: null }
+        }).select('review rating userId');
+
+        // Collect reviews and ratings
+        const reviews = bookingsWithReviews.map(b => ({
+          review: b.review,
+          rating: b.rating,
+          userId: b.userId
+        }));
+
+        // Calculate average rating for this service
+        const ratings = bookingsWithReviews.map(b => b.rating).filter(r => typeof r === 'number');
+        const avgRating = ratings.length
+          ? (ratings.reduce((acc, val) => acc + val, 0) / ratings.length).toFixed(2)
+          : null;
+
+        return {
+          serviceId: service._id,
+          serviceName: service.name,
+          totalReviews: reviews.length,
+          avgRating: avgRating ? Number(avgRating) : null,
+          reviews
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      services: serviceReviews
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Something went wrong',
+      error: error.message
+    });
+  }
+};

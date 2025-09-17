@@ -349,3 +349,135 @@ exports.approveCancellation = asyncHandler(async (req, res) => {
 
   res.json({ success: true, message: "Cancellation approved.", booking });
 });
+
+
+/**
+ * Get booking overview for an owner, with optional service filter and stats for weekly/monthly bookings.
+ * Query params:
+ *   - serviceId (optional): filter bookings by a specific service
+ *   - status (optional): filter by bookingStatus (e.g., "COMPLETED", "PENDING")
+ */
+exports.getOwnerBookingOverview = asyncHandler(async (req, res) => {
+  const ownerId = req.owner.id || req.owner._id;
+  const { serviceId, status, month, year, weekStart, week, weekYear } = req.query;
+
+  // 1. Find all services for this owner
+  // Service documents are linked to Business via businessId, and Business has ownerId
+  let services = [];
+  if (serviceId) {
+    services = await Service.find({ _id: serviceId }).select('_id name');
+  } else {
+    const businesses = await Business.find({ ownerId }).select('_id');
+    const businessIds = businesses.map(b => b._id);
+    if (businessIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        services: [],
+        totalBookings: 0,
+        bookings: [],
+        stats: { weekly: { total: 0, completed: 0 }, monthly: { total: 0, completed: 0 } }
+      });
+    }
+    services = await Service.find({ businessId: { $in: businessIds } }).select('_id name');
+  }
+  const serviceIds = services.map(s => s._id);
+
+  // 2. Build booking query
+  const bookingQuery = { serviceId: { $in: serviceIds } };
+  if (status) {
+    const normalizedStatus = String(status).toUpperCase();
+    bookingQuery.bookingStatus = normalizedStatus;
+  }
+
+  // 3. Get all bookings for these services
+  const bookings = await Booking.find(bookingQuery)
+    .populate('userId', 'name email')
+    .populate('petId', 'name type')
+    .populate('serviceId', 'name')
+    .sort({ bookingDate: -1, bookingTime: -1 });
+
+  // console.log(bookings);
+
+  // 4. Calculate stats
+  const now = new Date();
+
+  // Compute week range (defaults to current week Sunday-Sunday)
+  let startOfWeek;
+  if (weekStart) {
+    const ws = new Date(weekStart);
+    if (!isNaN(ws)) {
+      startOfWeek = new Date(ws);
+      startOfWeek.setHours(0, 0, 0, 0);
+    }
+  }
+  if (!startOfWeek && week) {
+    // Derive from week number (1-based) and optional weekYear (defaults to current year)
+    const y = Number(weekYear) || now.getFullYear();
+    const w = Math.max(1, Number(week));
+    const jan1 = new Date(y, 0, 1);
+    const jan1Day = jan1.getDay(); // 0 = Sunday
+    const firstWeekStart = new Date(jan1);
+    firstWeekStart.setDate(jan1.getDate() - jan1Day); // back to Sunday of the first week grid
+    startOfWeek = new Date(firstWeekStart);
+    startOfWeek.setDate(firstWeekStart.getDate() + (w - 1) * 7);
+    startOfWeek.setHours(0, 0, 0, 0);
+  }
+  if (!startOfWeek) {
+    startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
+    startOfWeek.setHours(0, 0, 0, 0);
+  }
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 7);
+
+  // Compute month range (defaults to current month)
+  let startOfMonth;
+  let endOfMonth;
+  const m = Number(month);
+  const y = Number(year);
+  if (!isNaN(m) && m >= 1 && m <= 12) {
+    const useYear = !isNaN(y) ? y : now.getFullYear();
+    startOfMonth = new Date(useYear, m - 1, 1);
+    endOfMonth = new Date(useYear, m, 1);
+  } else {
+    startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  }
+
+  // Helper to check if a booking is in a date range
+  function isInRange(date, start, end) {
+    return date >= start && date < end;
+  }
+
+  let weeklyIn = 0, weeklyCompleted = 0, monthlyIn = 0, monthlyCompleted = 0;
+  bookings.forEach(b => {
+    const bookingDate = b.bookingDate instanceof Date ? b.bookingDate : new Date(b.bookingDate);
+    // Weekly
+    if (isInRange(bookingDate, startOfWeek, endOfWeek)) {
+      weeklyIn++;
+      if (b.bookingStatus === 'COMPLETED') weeklyCompleted++;
+    }
+    // Monthly
+    if (isInRange(bookingDate, startOfMonth, endOfMonth)) {
+      monthlyIn++;
+      if (b.bookingStatus === 'COMPLETED') monthlyCompleted++;
+    }
+  });
+
+  res.status(200).json({
+    success: true,
+    services: services.map(s => ({ id: s._id, name: s.name })),
+    totalBookings: bookings.length,
+    bookings,
+    stats: {
+      weekly: {
+        total: weeklyIn,
+        completed: weeklyCompleted,
+      },
+      monthly: {
+        total: monthlyIn,
+        completed: monthlyCompleted,
+      }
+    }
+  });
+});

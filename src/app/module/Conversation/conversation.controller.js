@@ -3,8 +3,8 @@ const { ApiError } = require("../../../errors/errorHandler");
 const { HTTP_STATUS } = require("../../../utils/enum");
 const Conversation = require("./conversation.model");
 const User = require("../User/User");
-const { onlineUsers } = require('../../../sockets/SocketConnection');
-const Message = require('./message.model');
+const { onlineUsers } = require("../../../sockets/SocketConnection");
+const Message = require("./message.model");
 const Owner = require("../Owner/Owner");
 
 const getConversation = catchAsync(async (req, res) => {
@@ -16,44 +16,77 @@ const getConversation = catchAsync(async (req, res) => {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Missing partner ID.");
     }
 
-    const conversation = await Conversation.findOne({
+    // Find the conversation and populate messages
+    let conversation = await Conversation.findOne({
       participants: { $all: [userId, partnerId] },
-    }).populate({
-      path: "messages",
-      options: {
-        sort: { createdAt: -1 },
-        skip: (page - 1) * Number(limit),
-        limit: Number(limit),
-      },
-    });
+    })
+      .populate({
+        path: "messages",
+        options: {
+          sort: { createdAt: -1 },
+          skip: (page - 1) * Number(limit),
+          limit: Number(limit),
+        },
+      })
+      .lean();
 
-    const partner = await User.findById(partnerId).select(
-      "name profilePic address"
-    );
-
+    // If no conversation, still try to populate the partner for response
     if (!conversation) {
+      // Try to find partner in User or Owner
+      let partner =
+        (await User.findById(partnerId)
+          .select("name profilePic role")
+          .lean()) ||
+        (await Owner.findById(partnerId)
+          .select("name profilePic role")
+          .lean());
+
       return res.status(200).json({
         status: true,
-        conversation: conversation,
+        conversation: null,
         message: "No message history",
         participant: partner,
       });
     }
 
-        // Determine block status
+    // Populate participants with role, name, profilePic
+    const populatedParticipants = await Promise.all(
+      conversation.participants.map(async (id) => {
+        let user =
+          (await User.findById(id)
+            .select("role name profilePic")
+            .lean()) ||
+          (await Owner.findById(id)
+            .select("role name profilePic")
+            .lean());
+        return user
+          ? { _id: id, ...user }
+          : { _id: id, role: null, name: null, profilePic: null };
+      })
+    );
+
+    // Replace participants array with populated info
+    conversation.participants = populatedParticipants;
+
+    // Determine block status
     let isBlockedByYou = false;
     let isBlockedByPartner = false;
 
     if (conversation) {
-      isBlockedByYou = conversation.blockedBy.includes(userId);
-      isBlockedByPartner = conversation.blockedBy.includes(partnerId);
+      isBlockedByYou = conversation.blockedBy.map(id => id.toString()).includes(userId.toString());
+      isBlockedByPartner = conversation.blockedBy.map(id => id.toString()).includes(partnerId.toString());
     }
+
+    // Find partner info for response
+    let partner =
+      populatedParticipants.find(
+        (p) => p._id.toString() === partnerId.toString()
+      ) || null;
 
     res.status(200).json({
       status: true,
       conversation,
       message: "Fetched all message history",
-      participant: partner,
       participant: partner,
       blockStatus: {
         isBlockedByYou,
@@ -67,7 +100,6 @@ const getConversation = catchAsync(async (req, res) => {
   }
 });
 
-
 const getConversationList = catchAsync(async (req, res) => {
   try {
     const userId = req.user.id;
@@ -76,7 +108,7 @@ const getConversationList = catchAsync(async (req, res) => {
 
     // Find the user
     let user;
-    user = await User?.findById(userId) || await Owner?.findById(userId);
+    user = (await User?.findById(userId)) || (await Owner?.findById(userId));
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -86,30 +118,30 @@ const getConversationList = catchAsync(async (req, res) => {
       .populate({
         path: "participants",
         select: "name profilePic",
-        match: search
-          ? { name: { $regex: search, $options: "i" } }
-          : {},
+        match: search ? { name: { $regex: search, $options: "i" } } : {},
       })
       .sort({ updatedAt: -1 })
       .skip(skip)
       .limit(Number(limit));
-      
-      if (conversations.length === 0) {
-        return res.status(200).json({
-          success: true,
-          data: [],
-          pagination: {
-            currentPage: Number(page),
-            totalPages: 1,
-            totalConversations: 0,
-          },
-        });
-      }
+
+    if (conversations.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        pagination: {
+          currentPage: Number(page),
+          totalPages: 1,
+          totalConversations: 0,
+        },
+      });
+    }
     // Extract conversation IDs
     const conversationIds = conversations.map((conv) => conv._id);
 
     // Fetch the last messages for each conversation
-    const lastMessages = await Message.find({ conversationId: { $in: conversationIds } })
+    const lastMessages = await Message.find({
+      conversationId: { $in: conversationIds },
+    })
       .sort({ createdAt: -1 }) // Get latest messages
       .lean();
 
@@ -135,7 +167,9 @@ const getConversationList = catchAsync(async (req, res) => {
 
         // Debugging logs
         if (lastMessage) {
-          console.log(`Conversation ID: ${conversation._id} Last Message: ${lastMessage.text}`);
+          console.log(
+            `Conversation ID: ${conversation._id} Last Message: ${lastMessage.text}`
+          );
         } else {
           console.log(`Conversation ID: ${conversation._id} No messages yet.`);
         }
@@ -170,7 +204,9 @@ const getConversationList = catchAsync(async (req, res) => {
     const validConversations = processedConversations.filter(Boolean);
 
     // Get total count for pagination
-    const totalConversations = await Conversation.countDocuments({ participants: userId });
+    const totalConversations = await Conversation.countDocuments({
+      participants: userId,
+    });
 
     res.status(200).json({
       success: true,
@@ -187,7 +223,6 @@ const getConversationList = catchAsync(async (req, res) => {
   }
 });
 
-
 const blockToggle = catchAsync(async (req, res) => {
   try {
     const userId = req.userId;
@@ -199,30 +234,37 @@ const blockToggle = catchAsync(async (req, res) => {
     }
 
     if (!conversation.participants.includes(userId)) {
-      return res.status(403).json({ message: "You are not a participant in this conversation." });
+      return res
+        .status(403)
+        .json({ message: "You are not a participant in this conversation." });
     }
 
     // Check if the user has already blocked the conversation
     const isBlocked = conversation.blockedBy.includes(userId);
 
     if (isBlocked) {
-
-      conversation.blockedBy = conversation.blockedBy.filter((id) => id.toString() !== userId);
+      conversation.blockedBy = conversation.blockedBy.filter(
+        (id) => id.toString() !== userId
+      );
       await conversation.save();
-      return res.status(200).json({ success: true, message: "Conversation unblocked successfully." });
+      return res.status(200).json({
+        success: true,
+        message: "Conversation unblocked successfully.",
+      });
     } else {
-      
       conversation.blockedBy.push(userId);
       await conversation.save();
-      return res.status(200).json({ success: true, message: "Conversation blocked successfully." });
+      return res
+        .status(200)
+        .json({ success: true, message: "Conversation blocked successfully." });
     }
   } catch (error) {
     console.error("Error fetching inbox list:", error);
-    res.status(500).json({ success: false, message: "Server error please try again!" });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error please try again!" });
   }
 });
-
-
 
 const chatImageVideo = catchAsync(async (req, res) => {
   try {
@@ -232,9 +274,15 @@ const chatImageVideo = catchAsync(async (req, res) => {
     const video = req.files?.chatVideo?.[0] || null;
     const videoCover = req.files?.chatVideoCover?.[0] || null;
 
-    const uploadedImages = images.map((f) => f.location || f.key || f.path).filter(Boolean);
-    const uploadedVideo = video ? (video.location || video.key || video.path) : null;
-    const uploadedVideoCover = videoCover ? (videoCover.location || videoCover.key || videoCover.path) : null;
+    const uploadedImages = images
+      .map((f) => f.location || f.key || f.path)
+      .filter(Boolean);
+    const uploadedVideo = video
+      ? video.location || video.key || video.path
+      : null;
+    const uploadedVideoCover = videoCover
+      ? videoCover.location || videoCover.key || videoCover.path
+      : null;
 
     return res.status(200).json({
       success: true,
@@ -242,14 +290,11 @@ const chatImageVideo = catchAsync(async (req, res) => {
       video: uploadedVideo,
       cover: uploadedVideoCover,
     });
-
   } catch (error) {
     console.error("❌ Error uploading files", error);
     res.status(500).json({ success: false, message: "File Upload Error" });
   }
 });
-
-
 
 const deleteMessage = catchAsync(async (req, res) => {
   const userId = req.userId;
@@ -278,8 +323,6 @@ const deleteMessage = catchAsync(async (req, res) => {
     message: "Message deleted successfully",
   });
 });
-
-
 
 // Get a conversation by its id (with messages)
 const getConversationById = catchAsync(async (req, res) => {
@@ -339,7 +382,6 @@ const getConversationById = catchAsync(async (req, res) => {
     // Replace the message IDs in the conversation object with the populated messages
     conversation.messages = populatedMessages;
 
-
     const otherId = conversation.participants.find(
       (p) => p.toString() !== userId?.toString()
     );
@@ -348,13 +390,21 @@ const getConversationById = catchAsync(async (req, res) => {
     if (otherId) {
       // Try to find the partner in both User and Owner collections
       partner =
-        (await User.findById(otherId).select("name profilePic address role").lean()) ||
-        (await Owner.findById(otherId).select("name profilePic address role").lean());
+        (await User.findById(otherId)
+          .select("name profilePic address role")
+          .lean()) ||
+        (await Owner.findById(otherId)
+          .select("name profilePic address role")
+          .lean());
     }
 
-    const isBlockedByYou = conversation.blockedBy.map(id => id.toString()).includes(userId);
+    const isBlockedByYou = conversation.blockedBy
+      .map((id) => id.toString())
+      .includes(userId);
     const isBlockedByPartner = otherId
-      ? conversation.blockedBy.map(id => id.toString()).includes(otherId.toString())
+      ? conversation.blockedBy
+          .map((id) => id.toString())
+          .includes(otherId.toString())
       : false;
 
     return res.status(200).json({
@@ -373,14 +423,13 @@ const getConversationById = catchAsync(async (req, res) => {
   }
 });
 
-
 const ConversationController = {
   getConversation,
   getConversationList,
   blockToggle,
   chatImageVideo,
   deleteMessage,
-  getConversationById
+  getConversationById,
 };
 
 module.exports = { ConversationController };
