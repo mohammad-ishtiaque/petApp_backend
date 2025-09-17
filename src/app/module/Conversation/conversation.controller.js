@@ -289,33 +289,73 @@ const getConversationById = catchAsync(async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
 
     if (!conversationId) {
-      return res.status(400).json({ success: false, message: "Missing conversation id" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Missing conversation id" });
     }
 
-    const conversation = await Conversation.findById(conversationId).populate({
-      path: "messages",
-      options: {
-        sort: { createdAt: -1 },
-        skip: (Number(page) - 1) * Number(limit),
-        limit: Number(limit),
-      },
-    });
+    let conversation = await Conversation.findById(conversationId).lean();
 
     if (!conversation) {
-      return res.status(404).json({ success: false, message: "Conversation not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Conversation not found" });
     }
 
-    const otherId = conversation.participants.find(p => p.toString() !== userId?.toString());
+    // Manually fetch and paginate messages
+    const messages = await Message.find({ conversationId: conversation._id })
+      .sort({ createdAt: -1 })
+      .skip((Number(page) - 1) * Number(limit))
+      .limit(Number(limit))
+      .lean();
+
+    // Manually populate sender and receiver for each message
+    const populatedMessages = await Promise.all(
+      messages.map(async (message) => {
+        const sender =
+          (await User.findById(message.sender)
+            .select("name profilePic role")
+            .lean()) ||
+          (await Owner.findById(message.sender)
+            .select("name profilePic role")
+            .lean());
+
+        const receiver =
+          (await User.findById(message.receiver)
+            .select("name profilePic role")
+            .lean()) ||
+          (await Owner.findById(message.receiver)
+            .select("name profilePic role")
+            .lean());
+
+        return {
+          ...message,
+          sender,
+          receiver,
+        };
+      })
+    );
+
+    // Replace the message IDs in the conversation object with the populated messages
+    conversation.messages = populatedMessages;
+
+
+    const otherId = conversation.participants.find(
+      (p) => p.toString() !== userId?.toString()
+    );
+
     let partner = null;
     if (otherId) {
-      partner = await User.findById(otherId).select("name profilePic address");
-      if (!partner) {
-        partner = await Owner.findById(otherId).select("name profilePic address");
-      }
+      // Try to find the partner in both User and Owner collections
+      partner =
+        (await User.findById(otherId).select("name profilePic address role").lean()) ||
+        (await Owner.findById(otherId).select("name profilePic address role").lean());
     }
 
-    const isBlockedByYou = conversation.blockedBy.includes(userId);
-    const isBlockedByPartner = otherId ? conversation.blockedBy.includes(otherId.toString()) : false;
+    const isBlockedByYou = conversation.blockedBy.map(id => id.toString()).includes(userId);
+    const isBlockedByPartner = otherId
+      ? conversation.blockedBy.map(id => id.toString()).includes(otherId.toString())
+      : false;
 
     return res.status(200).json({
       success: true,
