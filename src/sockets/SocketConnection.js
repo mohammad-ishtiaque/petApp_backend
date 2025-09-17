@@ -276,16 +276,34 @@ socket.on("cancel-waiting", (data) => {
         sender: receiverId,
       });
   
+      // Populate sender and receiver details for the message
+      const populatedMessage = {
+        ...newMessage.toObject(),
+        sender: {
+          id: sender._id,
+          name: sender.name,
+          profilePic: sender.profilePic,
+          role: sender.role || (sender.email ? 'USER' : 'OWNER')
+        },
+        receiver: {
+          id: receiver._id,
+          name: receiver.name,
+          profilePic: receiver.profilePic,
+          role: receiver.role || (receiver.email ? 'USER' : 'OWNER')
+        }
+      };
+
       // Construct the conversation updates for both participants
       const conversationUpdateReceiver = {
         conversationId: conversation._id,
         participant: {
-          id: sender.id, // Receiver sees sender's details
+          id: sender._id, // Receiver sees sender's details
           name: sender.name,
           profileImage: sender.profilePic,
-          online: onlineUsers.has(sender.id) ?? false,
+          role: sender.role || (sender.email ? 'USER' : 'OWNER'),
+          online: onlineUsers.has(sender._id.toString()) ?? false,
         },
-        lastMessage: newMessage,
+        lastMessage: populatedMessage,
         unreadCount: unreadCountReceiver,
         updatedAt: new Date(),
       };
@@ -293,13 +311,14 @@ socket.on("cancel-waiting", (data) => {
       const conversationUpdateSender = {
         conversationId: conversation._id,
         participant: {
-          id: receiver.id, // Sender sees receiver's details
+          id: receiver._id, // Sender sees receiver's details
           name: receiver.name,
           profileImage: receiver.profilePic,
-          online: onlineUsers.has(receiver.id) ?? false,
+          role: receiver.role || (receiver.email ? 'USER' : 'OWNER'),
+          online: onlineUsers.has(receiver._id.toString()) ?? false,
         },
         unreadCount: unreadCountSender,
-        lastMessage: newMessage,
+        lastMessage: populatedMessage,
         updatedAt: new Date(),
       };
   
