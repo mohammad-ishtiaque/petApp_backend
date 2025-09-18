@@ -112,14 +112,10 @@ const getConversationList = catchAsync(async (req, res) => {
     }
 
     const conversations = await Conversation.find({ participants: userId })
-      .populate({
-        path: "participants",
-        select: "name profilePic",
-        match: search ? { name: { $regex: search, $options: "i" } } : {},
-      })
       .sort({ updatedAt: -1 })
       .skip(skip)
-      .limit(Number(limit));
+      .limit(Number(limit))
+      .lean();
 
     if (conversations.length === 0) {
       return res.status(200).json({
@@ -149,11 +145,43 @@ const getConversationList = catchAsync(async (req, res) => {
 
     const processedConversations = await Promise.all(
       conversations.map(async (conversation) => {
-        const otherParticipant = conversation.participants.find(
-          (participant) => participant._id.toString() !== userId
+        // Manually populate participants from both User and Owner collections
+        const populatedParticipants = await Promise.all(
+          conversation.participants.map(async (participantId) => {
+            // Try to find in User collection first, then Owner collection
+            let participant = await User.findById(participantId)
+              .select("name profilePic role")
+              .lean();
+            
+            if (!participant) {
+              participant = await Owner.findById(participantId)
+                .select("name profilePic role")
+                .lean();
+            }
+            
+            return participant ? { 
+              _id: participantId, 
+              ...participant 
+            } : { 
+              _id: participantId, 
+              name: "Unknown User", 
+              profilePic: null, 
+              role: null 
+            };
+          })
+        );
+
+        // Find the other participant (not the current user)
+        const otherParticipant = populatedParticipants.find(
+          (participant) => participant._id.toString() !== userId.toString()
         );
 
         if (!otherParticipant) return null;
+
+        // Apply search filter if provided
+        if (search && !otherParticipant.name?.toLowerCase().includes(search.toLowerCase())) {
+          return null;
+        }
 
         const lastMessage = lastMessageMap[conversation._id] || null;
         const isOnline = onlineUsers.has(otherParticipant._id.toString());
@@ -163,21 +191,33 @@ const getConversationList = catchAsync(async (req, res) => {
           seen: false,
         });
 
-        const detailedLastMessage = lastMessage 
-          ? {
-              ...lastMessage,
-              sender: {
-                id: lastMessage.sender,
-                name: (await User.findById(lastMessage.sender).select("name profilePic").lean()) || 
-                       (await Owner.findById(lastMessage.sender).select("name profilePic").lean()),
-              },
-              receiver: {
-                id: otherParticipant._id,
-                name: otherParticipant.name,
-                profileImage: otherParticipant.profilePic || "",
-              },
-            }
-          : null;
+        // Populate sender info for last message
+        let detailedLastMessage = null;
+        if (lastMessage) {
+          let senderInfo = await User.findById(lastMessage.sender)
+            .select("name profilePic")
+            .lean();
+          
+          if (!senderInfo) {
+            senderInfo = await Owner.findById(lastMessage.sender)
+              .select("name profilePic")
+              .lean();
+          }
+
+          detailedLastMessage = {
+            ...lastMessage,
+            sender: {
+              id: lastMessage.sender,
+              name: senderInfo?.name || "Unknown User",
+              profileImage: senderInfo?.profilePic || "",
+            },
+            receiver: {
+              id: otherParticipant._id,
+              name: otherParticipant.name,
+              profileImage: otherParticipant.profilePic || "",
+            },
+          };
+        }
 
         return {
           conversationId: conversation._id,
@@ -187,7 +227,7 @@ const getConversationList = catchAsync(async (req, res) => {
               id: userId,
               name: user.name,
               profileImage: user.profilePic || "",
-              online: onlineUsers.has(userId),
+              online: onlineUsers.has(userId.toString()),
             },
             {
               id: otherParticipant._id,

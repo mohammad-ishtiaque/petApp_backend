@@ -9,6 +9,11 @@ const conversationSchema = new Schema(
         ref: "User",
         required: true,
       },
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Owner",
+        required: true,
+      },
     ],
     messages: [
       {
