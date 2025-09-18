@@ -396,7 +396,6 @@ exports.getOwnerBookingOverview = asyncHandler(async (req, res) => {
     .populate('serviceId', 'name')
     .sort({ bookingDate: -1, bookingTime: -1 });
 
-  // console.log(bookings);
 
   // 4. Calculate stats
   const now = new Date();

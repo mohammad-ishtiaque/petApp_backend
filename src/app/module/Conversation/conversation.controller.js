@@ -106,15 +106,12 @@ const getConversationList = catchAsync(async (req, res) => {
     const { page = 1, limit = 10, search = "" } = req.query;
     const skip = (page - 1) * limit;
 
-    // Find the user
-    let user;
-    user = (await User?.findById(userId)) || (await Owner?.findById(userId));
+    const user = (await User?.findById(userId)) || (await Owner?.findById(userId));
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Fetch paginated conversations
-    let conversations = await Conversation.find({ participants: userId })
+    const conversations = await Conversation.find({ participants: userId })
       .populate({
         path: "participants",
         select: "name profilePic",
@@ -135,17 +132,14 @@ const getConversationList = catchAsync(async (req, res) => {
         },
       });
     }
-    // Extract conversation IDs
-    const conversationIds = conversations.map((conv) => conv._id);
 
-    // Fetch the last messages for each conversation
+    const conversationIds = conversations.map((conv) => conv._id);
     const lastMessages = await Message.find({
       conversationId: { $in: conversationIds },
     })
-      .sort({ createdAt: -1 }) // Get latest messages
+      .sort({ createdAt: -1 })
       .lean();
 
-    // Convert messages into a lookup object
     const lastMessageMap = {};
     lastMessages.forEach((msg) => {
       if (!lastMessageMap[msg.conversationId]) {
@@ -153,7 +147,6 @@ const getConversationList = catchAsync(async (req, res) => {
       }
     });
 
-    // Process conversations
     const processedConversations = await Promise.all(
       conversations.map(async (conversation) => {
         const otherParticipant = conversation.participants.find(
@@ -162,55 +155,65 @@ const getConversationList = catchAsync(async (req, res) => {
 
         if (!otherParticipant) return null;
 
-        // Get the last message
         const lastMessage = lastMessageMap[conversation._id] || null;
-
-        // Debugging logs
-        if (lastMessage) {
-          console.log(
-            `Conversation ID: ${conversation._id} Last Message: ${lastMessage.text}`
-          );
-        } else {
-          console.log(`Conversation ID: ${conversation._id} No messages yet.`);
-        }
-
-        // Check online status
         const isOnline = onlineUsers.has(otherParticipant._id.toString());
-
-        // Count unread messages
         const unreadCount = await Message.countDocuments({
           conversationId: conversation._id,
           sender: otherParticipant._id,
           seen: false,
         });
 
+        const detailedLastMessage = lastMessage 
+          ? {
+              ...lastMessage,
+              sender: {
+                id: lastMessage.sender,
+                name: (await User.findById(lastMessage.sender).select("name profilePic").lean()) || 
+                       (await Owner.findById(lastMessage.sender).select("name profilePic").lean()),
+              },
+              receiver: {
+                id: otherParticipant._id,
+                name: otherParticipant.name,
+                profileImage: otherParticipant.profilePic || "",
+              },
+            }
+          : null;
+
         return {
           conversationId: conversation._id,
           blockedBy: conversation.blockedBy,
-          participant: {
-            id: otherParticipant._id,
-            name: otherParticipant.name,
-            profileImage: otherParticipant.profilePic || "",
-            online: isOnline,
-          },
-          lastMessage,
+          participants: [
+            {
+              id: userId,
+              name: user.name,
+              profileImage: user.profilePic || "",
+              online: onlineUsers.has(userId),
+            },
+            {
+              id: otherParticipant._id,
+              name: otherParticipant.name,
+              profileImage: otherParticipant.profilePic || "",
+              online: isOnline,
+            },
+          ],
+          lastMessage: detailedLastMessage,
           unreadCount,
           updatedAt: conversation.updatedAt,
         };
       })
     );
 
-    // Remove null values
     const validConversations = processedConversations.filter(Boolean);
+    const uniqueConversations = Array.from(new Set(validConversations.map(conv => conv.conversationId)))
+      .map(id => validConversations.find(conv => conv.conversationId === id));
 
-    // Get total count for pagination
     const totalConversations = await Conversation.countDocuments({
       participants: userId,
     });
 
     res.status(200).json({
       success: true,
-      data: validConversations, // Return only valid conversations
+      data: uniqueConversations,
       pagination: {
         currentPage: Number(page),
         totalPages: Math.ceil(totalConversations / limit),
