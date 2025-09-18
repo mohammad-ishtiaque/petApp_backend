@@ -206,16 +206,8 @@ const getConversationList = catchAsync(async (req, res) => {
 
           detailedLastMessage = {
             ...lastMessage,
-            sender: {
-              id: lastMessage.sender,
-              name: senderInfo?.name || "Unknown User",
-              profileImage: senderInfo?.profilePic || "",
-            },
-            receiver: {
-              id: otherParticipant._id,
-              name: otherParticipant.name,
-              profileImage: otherParticipant.profilePic || "",
-            },
+            sender: lastMessage.sender,
+            receiver: otherParticipant._id
           };
         }
 
