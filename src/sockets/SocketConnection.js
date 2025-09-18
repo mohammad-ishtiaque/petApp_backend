@@ -279,30 +279,32 @@ socket.on("cancel-waiting", (data) => {
       // Populate sender and receiver details for the message
       const populatedMessage = {
         ...newMessage.toObject(),
-        sender: {
+        sender: sender._id,
+        receiver: receiver._id
+      };
+
+      // Construct the participants array with both users' information
+      const participants = [
+        {
           id: sender._id,
           name: sender.name,
           profilePic: sender.profilePic,
-          role: sender.role || (sender.email ? 'USER' : 'OWNER')
+          role: sender.role || (sender.email ? 'USER' : 'OWNER'),
+          online: onlineUsers.has(sender._id.toString()) ?? false,
         },
-        receiver: {
+        {
           id: receiver._id,
           name: receiver.name,
           profilePic: receiver.profilePic,
-          role: receiver.role || (receiver.email ? 'USER' : 'OWNER')
+          role: receiver.role || (receiver.email ? 'USER' : 'OWNER'),
+          online: onlineUsers.has(receiver._id.toString()) ?? false,
         }
-      };
+      ];
 
       // Construct the conversation updates for both participants
       const conversationUpdateReceiver = {
         conversationId: conversation._id,
-        participant: {
-          id: sender._id, // Receiver sees sender's details
-          name: sender.name,
-          profileImage: sender.profilePic,
-          role: sender.role || (sender.email ? 'USER' : 'OWNER'),
-          online: onlineUsers.has(sender._id.toString()) ?? false,
-        },
+        participants: participants, // Include both participants
         lastMessage: populatedMessage,
         unreadCount: unreadCountReceiver,
         updatedAt: new Date(),
@@ -310,13 +312,7 @@ socket.on("cancel-waiting", (data) => {
   
       const conversationUpdateSender = {
         conversationId: conversation._id,
-        participant: {
-          id: receiver._id, // Sender sees receiver's details
-          name: receiver.name,
-          profileImage: receiver.profilePic,
-          role: receiver.role || (receiver.email ? 'USER' : 'OWNER'),
-          online: onlineUsers.has(receiver._id.toString()) ?? false,
-        },
+        participants: participants, // Include both participants
         unreadCount: unreadCountSender,
         lastMessage: populatedMessage,
         updatedAt: new Date(),
