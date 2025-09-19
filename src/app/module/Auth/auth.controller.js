@@ -261,7 +261,12 @@ exports.resendVerificationCode = async (req, res, next) => {
   try {
     let userOrOwner = await User.findOne({ email });
     if (!userOrOwner) userOrOwner = await Owner.findOne({ email });
-    if (!userOrOwner) userOrOwner = await Admin.findOne({ email });
+    if (!userOrOwner) {
+      const tempUser = await TempUser.findOne({ email });
+      if (tempUser) {
+        userOrOwner = tempUser;
+      }
+    }
     if (!userOrOwner) throw new ApiError('User not found', 404);
     const code = tokenService.generateVerificationCode();
     userOrOwner.verificationCode = { code, expiresAt: new Date(Date.now() + 10 * 60 * 1000) };

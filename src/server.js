@@ -11,15 +11,15 @@ async function main() {
 
     await connectDB();
 
-    // const HOST = process.env.BASE_URL || "0.0.0.0";
+    const HOST = process.env.BASE_URL || "0.0.0.0";
 
-    // server.listen(PORT, HOST, () => {
-    //   console.log(`Pet App Server is running on http://${HOST}:${PORT}`);
-    // });
-
-    const server = app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server is Running http://localhost:${PORT}`);
+    const server = app.listen(PORT, HOST, () => {
+      console.log(`Pet App Server is running on http://${HOST}:${PORT}`);
     });
+
+    // const server = app.listen(PORT, "0.0.0.0", () => {
+    //   console.log(`Server is Running http://localhost:${PORT}`);
+    // });
     // Set up Socket.IO-----------------
     const socketIO = new Server(server, {
       pingTimeout: 60000,

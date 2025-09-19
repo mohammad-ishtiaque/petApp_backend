@@ -44,10 +44,10 @@ exports.updateOwnerProfile = async (req, res, next) => {
     if (req.file) {
       // Delete old profile picture if it exists
       if (owner.profilePic) {
-        await deleteFile(path.join(__dirname, '..', '..', '..', owner.profilePic));
+        await deleteFile(owner.profilePic);
       }
       // Update with new profile picture path (normalize path)
-      owner.profilePic = req.file.path.replace(/\\/g, '/');
+      owner.profilePic = req.file.location;
     }
 
     owner.name = name || owner.name;

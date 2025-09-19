@@ -9,7 +9,7 @@ exports.createPet = async (req, res, next) => {
     try {
         const userId = req.user.id || req.user._id;
         // console.log(ownerId)
-        const petPhoto = req.file ? req.file.path : null;
+        const petPhoto = req.file ? req.file.location : null;
         const { name, animalType, breed, age, gender, weight, height, color, description } = req.body;
         const pet = new Pet({ name, animalType, breed, age, gender, weight, height, color, description, userId, petPhoto });
         await pet.save();
@@ -60,7 +60,7 @@ exports.updatePet = async (req, res, next) => {
         }
         if (req.file) {
             const oldPetPhoto = pet.petPhoto;
-            pet.petPhoto = req.file.path;
+            pet.petPhoto = req.file.location;
             await pet.save();
             if (oldPetPhoto) {
                 try {
