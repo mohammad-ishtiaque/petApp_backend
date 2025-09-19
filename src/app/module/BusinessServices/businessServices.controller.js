@@ -94,12 +94,14 @@ exports.getNearbyServices = asyncHandler(async (req, res, next) => {
 exports.createService = asyncHandler(async (req, res, next) => {
     try {
         const ownerId = req.owner.id;
-        // console.log(ownerId);
         const business = await Business.findOne({ ownerId });
+        if (!business) {
+            throw new ApiError('Business not found for the authenticated owner', 404);
+        }
         const businessId = business._id;
         const shopLogo = business?.shopLogo;
 
-        const servicesImages = req.file ? req.file.path : null;
+        const servicesImages = req.file ? (req.file.location || req.file.path || null) : null;
         const { serviceType, serviceName, location, openingTime, closingTime, offDay, providings, websiteLink, phone, latitude, longitude } = req.body;
 
         const existingService = await Service.findOne({ businessId, serviceType: serviceType.toUpperCase() });
@@ -139,43 +141,47 @@ exports.createService = asyncHandler(async (req, res, next) => {
 exports.getAllServices = asyncHandler(async (req, res, next) => {
     const ownerId = req.owner?.id || req.owner?._id;
     const business = await Business.findOne({ ownerId });
-  
-    const businessId = business?._id;
+
+    if (!business) {
+        throw new ApiError('Business not found for the authenticated owner', 404);
+    }
+
+    const businessId = business._id;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
-  
+
     try {
-      const services = await Service.find({ businessId })
-        .skip(startIndex)
-        .limit(limit)
-        .lean();
-  
-      if (!services || services.length === 0) {
-        throw new ApiError("No services found", 404);
-      }
-  
-      const servicesWithStatus = services.map(service => ({
-        ...service,
-        isOpenNow: checkIfOpenNow(service) // ✅ Now it shows open/close status
-      }));
-  
-      return res.status(200).json({
-        success: true,
-        message: "Services fetched successfully",
-        services: servicesWithStatus,
-        total: await Service.countDocuments({ businessId }),
-        currentPage: page,
-        pageSize: limit,
-        startIndex,
-        endIndex
-      });
+        const services = await Service.find({ businessId })
+            .skip(startIndex)
+            .limit(limit)
+            .lean();
+
+        if (!services || services.length === 0) {
+            throw new ApiError("No services found", 404);
+        }
+
+        const servicesWithStatus = services.map(service => ({
+            ...service,
+            isOpenNow: checkIfOpenNow(service)
+        }));
+
+        return res.status(200).json({
+            success: true,
+            message: "Services fetched successfully",
+            services: servicesWithStatus,
+            total: await Service.countDocuments({ businessId }),
+            currentPage: page,
+            pageSize: limit,
+            startIndex,
+            endIndex
+        });
     } catch (err) {
-      throw new ApiError(err.message, 500);
+        throw new ApiError(err.message, 500);
     }
-  });
-  
+});
+
 exports.updateService = async (req, res, next) => {
     const serviceId = req.params.id;
 
@@ -186,12 +192,11 @@ exports.updateService = async (req, res, next) => {
         if (!service) throw new ApiError('Service not found', 404);
 
         if (req.file) {
-            // Delete old profile picture if it exists
-            if (service.servicesImages) {
+            if (service.servicesImages && !/^https?:\/\//i.test(service.servicesImages)) {
                 await deleteFile(path.join(__dirname, '..', '..', '..', service.servicesImages));
             }
-            // Update with new profile picture path (normalize path)
-            service.servicesImages = req.file.path.replace(/\\/g, '/');
+            const newImage = req.file.location || req.file.path;
+            service.servicesImages = newImage ? newImage.replace(/\\/g, '/') : service.servicesImages;
         }
 
         service.serviceName = serviceName || service.serviceName;

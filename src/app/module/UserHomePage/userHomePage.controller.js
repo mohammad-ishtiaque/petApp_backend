@@ -311,50 +311,74 @@ exports.searchServices = asyncHandler(async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const startIndex = (page - 1) * limit;
 
+    // Base DB filter
     const filter = { isActive: true };
 
-    if (searchQuery) {
-        // Case-insensitive search on service name and description
+    // Text search across multiple fields
+    if (searchQuery && searchQuery.trim()) {
+        const regex = new RegExp(searchQuery.trim(), 'i');
         filter.$or = [
-            { serviceName: { $regex: searchQuery, $options: 'i' } }
+            { serviceName: { $regex: regex } },
+            { location: { $regex: regex } },
+            { providings: { $elemMatch: { $regex: regex } } },
         ];
     }
 
-    // if (serviceType) {
-    //     filter.serviceType = serviceType.toUpperCase();
-    // }
+    // Filter by service type (case-insensitive; store as UPPER in DB)
+    if (serviceType && String(serviceType).trim()) {
+        filter.serviceType = String(serviceType).trim().toUpperCase();
+    }
 
-    // if (location) {
-    //     filter.location = { $regex: location, $options: 'i' };
-    // }
+    // Filter by location
+    if (location && String(location).trim()) {
+        filter.location = { $regex: new RegExp(String(location).trim(), 'i') };
+    }
 
-    // Find initial services based on DB filters
-    let services = await Service.find(filter).lean().populate('reviews', 'rating');
+    // Query and join reviews for rating calculation
+    let services = await Service.find(filter)
+        .populate('reviews', 'rating')
+        .lean();
 
-    // In-memory filtering and data augmentation
+    // Augment with computed fields
     let servicesWithStatus = services.map(service => {
-        const ratings = service.reviews?.map(r => r.rating);
-        const avgRating = ratings?.length
-            ? ratings.reduce((sum, r) => sum + r, 0) / ratings.length
-            : 0;
+        const ratings = service.reviews?.map(r => r.rating) || [];
+        const avgRating = ratings.length ? (ratings.reduce((sum, r) => sum + r, 0) / ratings.length) : 0;
+        const totalReviews = service.reviews?.length || 0;
+        const totalBookings = Array.isArray(service.bookings) ? service.bookings.length : (service.bookingsCount || 0);
 
         return {
             ...service,
             isOpenNow: checkIfOpenNow(service),
-            avgRating: parseFloat(avgRating.toFixed(1))
+            avgRating: parseFloat(avgRating.toFixed(1)),
+            totalReviews,
+            totalBookings,
         };
     });
 
-    // In-memory filter for isOpen
-    // if (isOpen === 'true') {
-    //     servicesWithStatus = servicesWithStatus.filter(service => service.isOpenNow);
-    // }
+    // Optional in-memory filter for open status
+    if (String(isOpen).toLowerCase() === 'true') {
+        servicesWithStatus = servicesWithStatus.filter(s => s.isOpenNow);
+    }
 
-    // Sorting
+    // Sorting improvements
     if (sortBy) {
+        const order = sortOrder === 'desc' ? -1 : 1;
         servicesWithStatus.sort((a, b) => {
-            const order = sortOrder === 'desc' ? -1 : 1;
-            return (a[sortBy] > b[sortBy] ? 1 : -1) * order;
+            switch (sortBy) {
+                case 'avgRating':
+                    return (a.avgRating - b.avgRating) * order;
+                case 'totalReviews':
+                    return (a.totalReviews - b.totalReviews) * order;
+                case 'totalBookings':
+                    return (a.totalBookings - b.totalBookings) * order;
+                case 'name':
+                case 'serviceName':
+                    return a.serviceName?.localeCompare(b.serviceName || '') * order;
+                default:
+                    // Fallback to raw property compare if present
+                    if (a[sortBy] === b[sortBy]) return 0;
+                    return (a[sortBy] > b[sortBy] ? 1 : -1) * order;
+            }
         });
     }
 
