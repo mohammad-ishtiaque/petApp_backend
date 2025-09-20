@@ -2,6 +2,7 @@ const asyncHandler = require('../../../utils/asyncHandler');
 const PetMedicalHistory = require('./PetMedicalHistory');
 const { ApiError } = require('../../../errors/errorHandler');
 
+
 exports.createPetMedicalHistory = asyncHandler(async (req, res) => {
     const petId = req.params.petId;
     const { treatmentType, treatmentDate, treatmentName, doctorName, treatmentDescription, treatmentStatus, treatmentCategory } = req.body;
