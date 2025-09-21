@@ -1,8 +1,6 @@
 const Owner = require('./Owner');
 const { ApiError } = require('../../../errors/errorHandler');
 const { deleteFile } = require('../../../utils/unLinkFiles');
-const path = require('path');
-const upload = require('../../../utils/upload');
 const Business = require('../Business/Business');
 const Service = require('../BusinessServices/Services');
 const Booking = require('../Booking/Booking');

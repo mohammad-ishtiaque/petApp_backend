@@ -1,9 +1,13 @@
 const Notification = require("./Notification");
 const asyncHandler = require("../../../utils/asyncHandler");
-
+const AdminNotification = require("./AdminNotification");
 // Create a new notification
 exports.createNotification = async (notificationData) => {
   return await Notification.create(notificationData);
+};
+
+exports.createAdminNotification = async (notificationData) => {
+  return await AdminNotification.create(notificationData);
 };
 
 // Get user notifications
@@ -116,4 +120,13 @@ exports.getSimpleNotifications = asyncHandler(async (req, res) => {
       time: n.createdAt
     }))
   });
+});
+
+
+exports.getAdminNotifications = asyncHandler(async (req, res) => {
+    const notifications = await AdminNotification.find().sort({ createdAt: -1 });
+    res.json({
+        success: true,
+        data: notifications
+    });
 });

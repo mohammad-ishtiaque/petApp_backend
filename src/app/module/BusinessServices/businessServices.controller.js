@@ -6,6 +6,8 @@ const path = require('path');
 const fs = require('fs');
 const { deleteFile } = require('../../../utils/unLinkFiles');
 const checkIfOpenNow = require('../../../utils/checkOpen');
+const Owner = require('../Owner/Owner');
+const {createAdminNotification} = require('../Notification/notification.controller');
 
 // Find nearby services by type within a radius (default 10km)
 exports.getNearbyServices = asyncHandler(async (req, res, next) => {
@@ -94,6 +96,7 @@ exports.getNearbyServices = asyncHandler(async (req, res, next) => {
 exports.createService = asyncHandler(async (req, res, next) => {
     try {
         const ownerId = req.owner.id;
+        const owner = await Owner.findById(ownerId);
         const business = await Business.findOne({ ownerId });
         if (!business) {
             throw new ApiError('Business not found for the authenticated owner', 404);
@@ -128,6 +131,10 @@ exports.createService = asyncHandler(async (req, res, next) => {
         await business.save();
 
         await service.save();
+        createAdminNotification({
+            title: 'A new service has been created by ' + owner.name,
+            message: `A New Service has been created by ${owner.name} with name ${service.serviceName} under ${business.businessName}`,
+        });
         return res.status(201).json({
             success: true,
             message: 'Service created successfully',
@@ -141,6 +148,7 @@ exports.createService = asyncHandler(async (req, res, next) => {
 exports.getAllServices = asyncHandler(async (req, res, next) => {
     const ownerId = req.owner?.id || req.owner?._id;
     const business = await Business.findOne({ ownerId });
+    
 
     if (!business) {
         throw new ApiError('Business not found for the authenticated owner', 404);
@@ -224,12 +232,18 @@ exports.updateService = async (req, res, next) => {
 
 exports.deleteService = asyncHandler(async (req, res, next) => {
     try {
+        const ownerId = req.owner.id;
+        const owner = await Owner.findById(ownerId);
         const serviceId = req.params.id;
         const service = await Service.findByIdAndUpdate(serviceId);
         if (!service) throw new ApiError('Service not found', 404);
         const business = await Business.findByIdAndUpdate(service.businessId, { $pull: { services: serviceId } });
         if (!business) throw new ApiError('Business not found', 404);
         await service.deleteOne();
+        createAdminNotification({
+            title: 'A Service has been deleted by ' + owner.name,
+            message: `A ${service.serviceName} has been deleted`,
+        })
         res.status(200).json({
             success: true,
             message: 'Service deleted successfully',

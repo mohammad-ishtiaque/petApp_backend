@@ -34,10 +34,10 @@ exports.updateUserProfile = async (req, res, next) => {
         if (req.file) {
             // Delete old profile picture if it exists
             if (user.profilePic) {
-                await deleteFile(path.join(__dirname, '..', '..', '..', user.profilePic));
+                await deleteFile(user.profilePic);
             }
             // Update with new profile picture path (normalize path)
-            user.profilePic = req.file.path.replace(/\\/g, '/');
+            user.profilePic = req.file.location;
         }
 
         user.name = name || user.name;

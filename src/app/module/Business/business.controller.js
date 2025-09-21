@@ -8,6 +8,7 @@ const Booking = require('../Booking/Booking');
 const BusinessServices = require('../BusinessServices/Services');
 const Review = require('../Review/Review');
 const Advertisement = require('../Advertisement/Advertisement');
+const { createAdminNotification } = require('../Notification/notification.controller');
 
 
 
@@ -15,7 +16,7 @@ const Advertisement = require('../Advertisement/Advertisement');
 exports.createBusiness = async (req, res, next) => {
     const ownerId = req.owner.id;
     const { businessName, businessType, website, address, moreInfo } = req.body;
-    
+
     try {
         const owner = await Owner.findById(ownerId);
         if (!owner) throw new ApiError('Owner not found', 404);
@@ -23,8 +24,8 @@ exports.createBusiness = async (req, res, next) => {
         // console.log(owner);
         // Handle file uploads
         const shopLogo = req.files && req.files['shopLogo'] ? req.files['shopLogo'][0].location : null;
-        const shopPics = req.files && req.files['shopPic'] 
-            ? req.files['shopPic'].map(file => file.location) 
+        const shopPics = req.files && req.files['shopPic']
+            ? req.files['shopPic'].map(file => file.location)
             : [];
 
         const business = new Business({
@@ -40,7 +41,12 @@ exports.createBusiness = async (req, res, next) => {
         await business.save();
         owner.businesses = [business._id];
         await owner.save();
-        
+
+        createAdminNotification({
+            title: 'A New Business has been created by ' + owner.name,
+            message: `A new business has been created by ${owner.name} with name ${business.businessName}.`,
+        });
+
         return res.status(201).json({
             success: true,
             message: 'Business created successfully',
@@ -57,14 +63,14 @@ exports.getBusiness = async (req, res, next) => {
     try {
         const business = await Business.findOne({ ownerId });
         if (!business) throw new ApiError('Business not found', 404);
-        
+
         const serviceIds = business.services;
         const businessServices = await BusinessServices.find({ _id: { $in: serviceIds } });
         const servicesType = businessServices.map(service => service.serviceType);
         // console.log(servicesType);
         business.servicesType = servicesType;
-        
-        
+
+
         await business.save();
 
         return res.status(200).json({
@@ -97,7 +103,7 @@ exports.getBusinessById = async (req, res, next) => {
 exports.updateBusiness = async (req, res, next) => {
     const businessId = req.params.id;
     const { businessName, website, address, moreInfo } = req.body;
-    
+
     try {
         const business = await Business.findById(businessId);
         if (!business) throw new ApiError('Business not found', 404);
@@ -110,13 +116,13 @@ exports.updateBusiness = async (req, res, next) => {
             // Update with new logo path (normalize path)
             business.shopLogo = req.files['shopLogo'][0].location;
         }
-        
+
         // Handle shopPic update
         if (req.files && req.files['shopPic']) {
             // Delete old shop pictures if they exist
             if (business.shopPic && business.shopPic.length > 0) {
                 await Promise.all(
-                    business.shopPic.map(file => 
+                    business.shopPic.map(file =>
                         deleteFile(file)
                     )
                 );
@@ -126,7 +132,7 @@ exports.updateBusiness = async (req, res, next) => {
         }
         await business.save();
         business.businessName = businessName || business.businessName;
-        business.website = website || business.website; 
+        business.website = website || business.website;
         business.address = address || business.address;
         business.moreInfo = moreInfo || business.moreInfo;
         await business.save();
@@ -146,12 +152,17 @@ exports.deleteBusiness = async (req, res, next) => {
     try {
         const business = await Business.findByIdAndDelete(businessId);
         if (!business) throw new ApiError('Business not found', 404);
-        
+
         await Owner.findByIdAndUpdate(ownerId, { $unset: { businesses: businessId } });
         await Booking.deleteMany({ businessId });
         await BusinessServices.deleteMany({ businessId });
         await Review.deleteMany({ businessId });
         await Advertisement.deleteMany({ businessId });
+
+        createAdminNotification({
+            title: 'A Business has been deleted by ' + business.businessName,
+            message: `A business has been deleted by ${business.businessName}`,
+        })
         return res.status(200).json({
             success: true,
             message: 'Business deleted successfully',
@@ -166,19 +177,20 @@ exports.deleteBusiness = async (req, res, next) => {
 exports.getAllBusiness = async (req, res, next) => {
     try {
         const business = await Business.find();
-        if (!business) throw new ApiError('Business not found', 404);     
+        if (!business) throw new ApiError('Business not found', 404);
         return res.status(200).json({
             success: true,
             message: 'Business fetched successfully',
             business
         });
     } catch (err) {
-        throw new ApiError(err.message, 500);   
+        throw new ApiError(err.message, 500);
     }
 };
 
 exports.addAdvertisement = async (req, res, next) => {
     const ownerId = req.owner.id;
+    const owner = await Owner.findById(ownerId);
     const business = await Business.findOne({ ownerId });
     const businessId = business._id;
 
@@ -189,6 +201,15 @@ exports.addAdvertisement = async (req, res, next) => {
         if (!business) throw new ApiError('Business not found', 404);
         business.advertisementImg = advertisementImg ? advertisementImg.map(file => file.location) : []
         await business.save();
+
+        createAdminNotification({
+            title: 'A New Advertisement has been added by ' + owner.name,
+            message: `A new advertisement has been added by ${owner.name}`,
+        });
+        console.log(createAdminNotification({
+            title: 'A New Advertisement has been added by ' + owner.name,
+            message: `A new advertisement has been added by ${owner.name}`,
+        }))
         return res.status(200).json({
             success: true,
             message: 'advertisement added successfully',
@@ -202,6 +223,7 @@ exports.addAdvertisement = async (req, res, next) => {
 
 exports.deleteAdvertisement = async (req, res, next) => {
     const ownerId = req.owner.id;
+    const owner = await Owner.findById(ownerId);
     const business = await Business.findOne({ ownerId });
     const businessId = business._id;
     try {
@@ -209,6 +231,15 @@ exports.deleteAdvertisement = async (req, res, next) => {
         if (!business) throw new ApiError('Business not found', 404);
         business.advertisementImg = [];
         await business.save();
+
+        createAdminNotification({
+            title: 'An Advertisement has been deleted by ' + owner.name,
+            message: `An advertisement has been deleted by ${owner.name}`,
+        });
+        console.log(createAdminNotification({
+            title: 'An Advertisement has been deleted by ' + owner.name,
+            message: `An advertisement has been deleted by ${owner.name}`,
+        }))
         return res.status(200).json({
             success: true,
             message: 'advertisement deleted successfully',
