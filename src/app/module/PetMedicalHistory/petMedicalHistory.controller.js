@@ -41,7 +41,8 @@ exports.getPetMedicalHistoryByTreatmentStatus = asyncHandler(async (req, res) =>
     const petMedicalHistoryByTreatmentStatus = await PetMedicalHistory
         .find({ treatmentStatus: treatmentStatus?.toUpperCase() })
         .skip(skip)
-        .limit(limit);
+        .limit(limit)
+        .sort({ createdAt: -1 });
 
     // Count total matching docs for pagination info
     const total = await PetMedicalHistory.countDocuments({ treatmentStatus: treatmentStatus?.toUpperCase() });

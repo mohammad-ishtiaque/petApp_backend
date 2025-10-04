@@ -6,6 +6,7 @@ const Business = require("../Business/Business");
 const Owner = require("../Owner/Owner");
 const Pet = require("../Pet/Pet");
 const User = require("../User/User");
+const QueryBuilder = require("../../../builder/queryBuilder");
 
 exports.createBooking = asyncHandler(async (req, res) => {
   const userId = req.user.id || req.user._id;
@@ -94,30 +95,49 @@ exports.createBooking = asyncHandler(async (req, res) => {
 });
 
 exports.getBooking = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10 } = req.query;
-  const totalBookings = await Booking.countDocuments({
-    userId: req.user.id || req.user._id,
-  });
-  const totalPages = Math.ceil(totalBookings / limit);
-  const bookings = await Booking.find({ userId: req.user.id || req.user._id })
-    .populate(
-      "serviceId",
-      "serviceType isOpenNow businessId shopLogo location phone servicesImages websiteLink"
-    )
-    .skip((page - 1) * limit)
-    .limit(limit)
-    .sort({ bookingDate: -1 });
+  const query = { userId: req.user.id || req.user._id };
+  const queryObj = { ...req.query };
+  
+  // Create query builder instance
+  const bookingQuery = new QueryBuilder(Booking.find(query), queryObj)
+    .search(['bookingStatus', 'notes']) // Add searchable fields if needed
+    .filter()
+    .sort()
+    .paginate()
+    .fields();
 
-  if (!bookings) throw new ApiError("Bookings not found", 404);
+  // Execute query and get pagination info
+  const bookings = await bookingQuery.modelQuery.populate(
+    "serviceId",
+    "serviceType isOpenNow businessId shopLogo location phone servicesImages websiteLink"
+  );
+  
+  const { page, limit, total, totalPage } = await bookingQuery.countTotal();
+
+  if (!bookings || bookings.length === 0) {
+    return res.status(200).json({
+      success: true,
+      message: "No bookings found",
+      bookings: [],
+      pagination: {
+        total,
+        totalPage,
+        currentPage: page,
+        limit,
+      },
+    });
+  }
 
   res.status(200).json({
     success: true,
     message: "Bookings retrieved successfully",
     bookings,
-    totalPages,
-    totalBookings,
-    currentPage: page,
-    limit: limit,
+    pagination: {
+      total,
+      totalPage,
+      currentPage: page,
+      limit,
+    },
   });
 });
 

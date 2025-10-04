@@ -58,20 +58,58 @@ exports.createBusiness = async (req, res, next) => {
 };
 
 
+// exports.getBusiness = async (req, res, next) => {
+//     const ownerId = req.owner.id;
+//     try {
+//         const business = await Business.findOne({ ownerId });
+//         if (!business) throw new ApiError('Business not found', 404);
+
+//         const serviceIds = business.services;
+//         const businessServices = await BusinessServices.find({ _id: { $in: serviceIds } });
+//         const servicesType = businessServices.map(service => service.serviceType);
+//         // console.log(servicesType);
+//         business.servicesType = servicesType;
+
+
+//         await business.save();
+
+//         return res.status(200).json({
+//             success: true,
+//             message: 'Business fetched successfully',
+//             business
+//         });
+//     } catch (err) {
+//         throw new ApiError(err.message, 500);
+//     }
+// };
 exports.getBusiness = async (req, res, next) => {
     const ownerId = req.owner.id;
+    const queryObj = { ...req.query, ownerId }; // Include ownerId in the query
+    
     try {
-        const business = await Business.findOne({ ownerId });
+        // Create query builder instance
+        const businessQuery = new QueryBuilder(
+            Business.findOne({ ownerId }), 
+            queryObj
+        )
+        .filter()
+        .fields();
+
+        const business = await businessQuery.modelQuery;
         if (!business) throw new ApiError('Business not found', 404);
 
-        const serviceIds = business.services;
-        const businessServices = await BusinessServices.find({ _id: { $in: serviceIds } });
-        const servicesType = businessServices.map(service => service.serviceType);
-        // console.log(servicesType);
-        business.servicesType = servicesType;
-
-
-        await business.save();
+        // Fetch and attach service types
+        const serviceIds = business.services || [];
+        if (serviceIds.length > 0) {
+            const businessServices = await BusinessServices.find({ _id: { $in: serviceIds } });
+            business.servicesType = businessServices.map(service => service.serviceType);
+            // Save only if there are services to update
+            if (business.servicesType.length > 0) {
+                await business.save();
+            }
+        } else {
+            business.servicesType = [];
+        }
 
         return res.status(200).json({
             success: true,
@@ -79,10 +117,9 @@ exports.getBusiness = async (req, res, next) => {
             business
         });
     } catch (err) {
-        throw new ApiError(err.message, 500);
+        next(err);
     }
 };
-
 
 exports.getBusinessById = async (req, res, next) => {
     const businessId = req.params.id;

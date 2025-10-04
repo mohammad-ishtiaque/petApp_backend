@@ -174,9 +174,41 @@ exports.forgotPassword = async (req, res, next) => {
   }
 };
 
+
+// RESEND PASSWORD RESET CODE
+exports.resendPasswordResetCode = async (req, res, next) => {
+  const { email } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    const owner = await Owner.findOne({ email });
+    const admin = await Admin.findOne({ email });
+    if (!user && !owner && !admin) throw new ApiError('User not found', 404);
+
+    const resetCode = tokenService.generateVerificationCode();
+    if (user) user.passwordResetCode = { code: resetCode, expiresAt: new Date(Date.now() + 10 * 60 * 1000) };
+    if (owner) owner.passwordResetCode = { code: resetCode, expiresAt: new Date(Date.now() + 10 * 60 * 1000) };
+    if (admin) admin.passwordResetCode = { code: resetCode, expiresAt: new Date(Date.now() + 10 * 60 * 1000) };
+
+    if (user) await user.save();
+    if (owner) await owner.save();
+    if (admin) await admin.save();
+
+    // Send password reset code
+    await emailService.sendPasswordResetCode(email, resetCode);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Password reset code sent to your email.'
+    });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+
 // RESET PASSWORD
 exports.resetPassword = async (req, res, next) => {
-  const { email, code, password, confirmPassword } = req.body;
+  const { email, password, confirmPassword } = req.body;
   try {
 
 
@@ -187,9 +219,9 @@ exports.resetPassword = async (req, res, next) => {
     if (password !== confirmPassword) throw new ApiError('Passwords do not match', 400);
 
     if (user) {
-      if (!user.passwordResetCode || user.passwordResetCode.code !== code || user.passwordResetCode.expiresAt < new Date()) {
-        throw new ApiError('Invalid or expired reset code', 400);
-      }
+      // if (!user.passwordResetCode || user.passwordResetCode.code !== code || user.passwordResetCode.expiresAt < new Date()) {
+      //   throw new ApiError('Invalid or expired reset code', 400);
+      // }
       user.passwordResetCode = undefined;
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
@@ -202,9 +234,9 @@ exports.resetPassword = async (req, res, next) => {
     }
 
     if (owner) {
-      if (!owner.passwordResetCode || owner.passwordResetCode.code !== code || owner.passwordResetCode.expiresAt < new Date()) {
-        throw new ApiError('Invalid or expired reset code', 400);
-      }
+      // if (!owner.passwordResetCode || owner.passwordResetCode.code !== code || owner.passwordResetCode.expiresAt < new Date()) {
+      //   throw new ApiError('Invalid or expired reset code', 400);
+      // }
       owner.passwordResetCode = undefined;
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
@@ -217,9 +249,9 @@ exports.resetPassword = async (req, res, next) => {
     }
 
     if (admin) {
-      if (!admin.passwordResetCode || admin.passwordResetCode.code !== code || admin.passwordResetCode.expiresAt < new Date()) {
-        throw new ApiError('Invalid or expired reset code', 400);
-      }
+      // if (!admin.passwordResetCode || admin.passwordResetCode.code !== code || admin.passwordResetCode.expiresAt < new Date()) {
+      //   throw new ApiError('Invalid or expired reset code', 400);
+      // }
       admin.passwordResetCode = undefined;
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
@@ -244,11 +276,27 @@ exports.verifyCode = async (req, res, next) => {
     const owner = await Owner.findOne({ email });
     const admin = await Admin.findOne({ email });
     if (!user && !owner && !admin) throw new ApiError('User not found', 404);
-    const valid = user?.verificationCode?.code === code || owner?.verificationCode?.code === code || admin?.verificationCode?.code === code;
-    if (!valid) throw new ApiError('Invalid or expired verification code', 400);
+
+    const valid =
+      user?.verificationCode?.code === code ||
+      owner?.verificationCode?.code === code ||
+      admin?.verificationCode?.code === code ||
+      user?.passwordResetCode?.code === code ||
+      owner?.passwordResetCode?.code === code ||
+      admin?.passwordResetCode?.code === code;
+
+    if (
+      !valid ||
+      (user?.passwordResetCode?.code === code && user?.passwordResetCode?.expiresAt < new Date()) ||
+      (owner?.passwordResetCode?.code === code && owner?.passwordResetCode?.expiresAt < new Date()) ||
+      (admin?.passwordResetCode?.code === code && admin?.passwordResetCode?.expiresAt < new Date())
+    ) {
+      throw new ApiError('Invalid or expired verification code', 400);
+    }
+
     return res.status(200).json({
       success: true,
-      message: 'Verification code is valid.'
+      message: 'Verification code is valid.',
     });
   } catch (err) {
     return next(err);
