@@ -1,11 +1,14 @@
 const Owner = require('./Owner');
 const { ApiError } = require('../../../errors/errorHandler');
 const { deleteFile } = require('../../../utils/unLinkFiles');
+const path = require('path');
+const upload = require('../../../utils/upload');
 const Business = require('../Business/Business');
 const Service = require('../BusinessServices/Services');
 const Booking = require('../Booking/Booking');
 const asyncHandler = require('../../../utils/asyncHandler');
 const Pet = require('../Pet/Pet')
+const PetMedicalHistory = require('../PetMedicalHistory/PetMedicalHistory');
 
 
 exports.getOwnerDetails = asyncHandler(async (req, res, next) => {
@@ -42,10 +45,10 @@ exports.updateOwnerProfile = async (req, res, next) => {
     if (req.file) {
       // Delete old profile picture if it exists
       if (owner.profilePic) {
-        await deleteFile(owner.profilePic);
+        await deleteFile(path.join(__dirname, '..', '..', '..', owner.profilePic));
       }
       // Update with new profile picture path (normalize path)
-      owner.profilePic = req.file.location;
+      owner.profilePic = req.file.path.replace(/\\/g, '/');
     }
 
     owner.name = name || owner.name;
@@ -93,7 +96,6 @@ exports.getOwnerBusinesses = asyncHandler(async (req, res, next) => {
   });
 });
 
-
 //when owner logged in. we will get the owner id. 
 //if we push the booking id int the owner section they will see those. 
 exports.getAllBookingsByOwner = asyncHandler(async (req, res, next) => {
@@ -117,8 +119,6 @@ exports.getAllBookingsByOwner = asyncHandler(async (req, res, next) => {
     bookings: owner.bookings, // no circular structure now
   });
 });
-
-
 
 exports.getBookingsByOwnerWithStatusAndPagination = asyncHandler(async (req, res, next) => {
   const ownerId = req.owner.id || req.owner._id;
@@ -151,8 +151,6 @@ exports.getBookingsByOwnerWithStatusAndPagination = asyncHandler(async (req, res
     limit: Number(limit),
   });
 });
-
-
 
 exports.updateBookingStatus = asyncHandler(async (req, res) => {
   const bookingId = req.params._id || req.params.id;
@@ -238,7 +236,6 @@ exports.getBookingsByServiceType = asyncHandler(async (req, res) => {
   });
 });
 
-
 exports.getBookedPetsByOwner = async (req, res, next) => {
   try {
     const  ownerId  = req.params.id || req.params._id;
@@ -252,7 +249,24 @@ exports.getBookedPetsByOwner = async (req, res, next) => {
     const userIds = [...new Set(bookings.map(b => b.userId.toString()))];
 
     // 3. Get all pets under those users
-    const pets = await Pet.find({ userId: { $in: userIds } });
+    const pets = await Pet.find({ userId: { $in: userIds } })
+      .populate('userId', 'name email profilePic');
+
+    // For each pet, populate its medicalHistory field with all medical history records
+    const petsWithMedicalHistory = await Promise.all(
+      pets.map(async (pet) => {
+        const populatedPet = pet.toObject ? pet.toObject() : pet;
+        // Populate medicalHistory for this pet
+        const medicalHistory = await PetMedicalHistory.find({ petId: pet._id }).sort({ createdAt: -1 });
+        return {
+          ...populatedPet,
+          medicalHistory
+        };
+      })
+    );
+    // Overwrite pets with the enriched array
+    pets.length = 0;
+    pets.push(...petsWithMedicalHistory);
 
     res.status(200).json({
       success: true,
@@ -275,10 +289,21 @@ exports.gtPetDetailsByPetId = asyncHandler(async (req, res) => {
   if (!pet) {
     throw new ApiError('Pet not found', 404);
   }
+  // Fetch the pet's medical history
+  // Fetch detailed medical history records for the pet, including treatment details
+  const medicalHistory = await PetMedicalHistory.find({ petId: pet._id })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  // Attach detailed medical history to the pet object
+  const petWithMedicalHistory = {
+    ...pet.toObject(),
+    medicalHistory
+  };
   res.status(200).json({
     success: true,
     message: 'Pet fetched successfully',
-    pet
+    petWithMedicalHistory
   });
 });
 

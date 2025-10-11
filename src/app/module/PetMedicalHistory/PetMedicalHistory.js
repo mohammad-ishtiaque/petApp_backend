@@ -7,18 +7,23 @@ const petMedicalHistorySchema = new mongoose.Schema({
     },
     treatmentType: {
         type: String,
+        default: ''
     },
     treatmentDate: {
         type: Date,
+        default: Date.now
     },
     treatmentName: {
         type: String,
+        default: ''
     },
     doctorName: {
         type: String,
+        default: ''
     },
     treatmentDescription: {
         type: String,
+        default: ''
     },
     treatmentStatus: {
         type: String,
