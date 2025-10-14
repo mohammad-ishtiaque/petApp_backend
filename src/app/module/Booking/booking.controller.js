@@ -500,3 +500,236 @@ exports.getOwnerBookingOverview = asyncHandler(async (req, res) => {
     }
   });
 });
+
+/**
+ * Get per-status booking counts for the authenticated owner.
+ * Optional filters:
+ *   - serviceId: only a specific service
+ *   - month/year: counts within that calendar month
+ *   - weekStart or week/weekYear: counts within that week (Sunday start)
+ * If no time filter is provided, returns overall counts across all time.
+ */
+exports.getOwnerBookingStatusCounts = asyncHandler(async (req, res) => {
+  const ownerId = req.owner.id || req.owner._id;
+  const { serviceId, month, year, weekStart, week, weekYear, period } = req.query;
+
+  // Resolve services owned by this owner
+  let services = [];
+  if (serviceId) {
+    services = await Service.find({ _id: serviceId }).select("_id");
+  } else {
+    const businesses = await Business.find({ ownerId }).select("_id");
+    const businessIds = businesses.map(b => b._id);
+    if (businessIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        counts: { total: 0, PENDING: 0, APPROVED: 0, COMPLETED: 0, REJECTED: 0, CANCELLED: 0 },
+        weekly: { total: 0, PENDING: 0, APPROVED: 0, COMPLETED: 0, REJECTED: 0, CANCELLED: 0 },
+        monthly: { total: 0, PENDING: 0, APPROVED: 0, COMPLETED: 0, REJECTED: 0, CANCELLED: 0 }
+      });
+    }
+    services = await Service.find({ businessId: { $in: businessIds } }).select("_id");
+  }
+  const serviceIds = services.map(s => s._id);
+
+  // Helper to run aggregation for a given date range
+  async function aggregateCounts(rangeStart, rangeEnd) {
+    const match = { serviceId: { $in: serviceIds } };
+    if (rangeStart && rangeEnd) {
+      match.bookingDate = { $gte: rangeStart, $lt: rangeEnd };
+    }
+    const pipeline = [
+      { $match: match },
+      { $group: { _id: "$bookingStatus", count: { $sum: 1 } } }
+    ];
+    const grouped = await Booking.aggregate(pipeline);
+    const base = { total: 0, PENDING: 0, APPROVED: 0, COMPLETED: 0, REJECTED: 0, CANCELLED: 0 };
+    grouped.forEach(g => {
+      base.total += g.count;
+      base[g._id] = g.count;
+    });
+    return base;
+  }
+
+  // Compute week range when requested
+  const now = new Date();
+  let weekStartDate;
+  if (weekStart) {
+    const ws = new Date(weekStart);
+    if (!isNaN(ws)) {
+      weekStartDate = new Date(ws);
+      weekStartDate.setHours(0, 0, 0, 0);
+    }
+  } else if (week) {
+    const y = Number(weekYear) || now.getFullYear();
+    const w = Math.max(1, Number(week));
+    const jan1 = new Date(y, 0, 1);
+    const jan1Day = jan1.getDay();
+    const firstWeekStart = new Date(jan1);
+    firstWeekStart.setDate(jan1.getDate() - jan1Day);
+    weekStartDate = new Date(firstWeekStart);
+    weekStartDate.setDate(firstWeekStart.getDate() + (w - 1) * 7);
+    weekStartDate.setHours(0, 0, 0, 0);
+  }
+  if (!weekStartDate) {
+    weekStartDate = new Date(now);
+    weekStartDate.setDate(now.getDate() - now.getDay());
+    weekStartDate.setHours(0, 0, 0, 0);
+  }
+  const weekEndDate = new Date(weekStartDate);
+  weekEndDate.setDate(weekStartDate.getDate() + 7);
+
+  // Compute month range when requested or default current month for monthly section
+  const m = Number(month);
+  const y = Number(year);
+  let monthStartDate;
+  let monthEndDate;
+  if (!isNaN(m) && m >= 1 && m <= 12) {
+    const useYear = !isNaN(y) ? y : now.getFullYear();
+    monthStartDate = new Date(useYear, m - 1, 1);
+    monthEndDate = new Date(useYear, m, 1);
+  } else {
+    monthStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    monthEndDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  }
+
+  // If client specifies a period, return only that period (default monthly)
+  const normalizedPeriod = String(period || 'monthly').toLowerCase();
+  if (normalizedPeriod === 'weekly') {
+    const weeklyCounts = await aggregateCounts(weekStartDate, weekEndDate);
+    return res.status(200).json({
+      success: true,
+      period: 'weekly',
+      range: { start: weekStartDate, end: weekEndDate },
+      counts: weeklyCounts
+    });
+  }
+
+  if (normalizedPeriod === 'monthly') {
+    const monthlyCounts = await aggregateCounts(monthStartDate, monthEndDate);
+    return res.status(200).json({
+      success: true,
+      period: 'monthly',
+      range: { start: monthStartDate, end: monthEndDate },
+      counts: monthlyCounts
+    });
+  }
+
+  // Backward-compatible response when no recognized period is provided
+  const [overallCounts, weeklyCounts, monthlyCounts] = await Promise.all([
+    aggregateCounts(),
+    aggregateCounts(weekStartDate, weekEndDate),
+    aggregateCounts(monthStartDate, monthEndDate)
+  ]);
+
+  res.status(200).json({
+    success: true,
+    counts: overallCounts,
+    weekly: weeklyCounts,
+    monthly: monthlyCounts
+  });
+});
+
+/**
+ * Get all bookings under a single business combined across its services.
+ * Params:
+ *   - businessId: path param
+ * Query:
+ *   - status (optional): PENDING|APPROVED|COMPLETED|REJECTED|CANCELLED
+ *   - period (optional): monthly|weekly
+ *   - month, year (optional when period=monthly)
+ *   - weekStart or week/weekYear (optional when period=weekly)
+ *   - page, limit (optional): pagination
+ */
+exports.getBusinessCombinedBookings = asyncHandler(async (req, res) => {
+  const { businessId } = req.params;
+  const { status, period, month, year, weekStart, week, weekYear } = req.query;
+
+  // Build base match using businessId directly from Booking schema
+  const match = { businessId };
+  if (status) {
+    match.bookingStatus = String(status).toUpperCase();
+  }
+
+  // Date range per period
+  const now = new Date();
+  let rangeStart;
+  let rangeEnd;
+  const normalizedPeriod = period ? String(period).toLowerCase() : undefined;
+
+  if (normalizedPeriod === 'weekly') {
+    let start = undefined;
+    if (weekStart) {
+      const ws = new Date(weekStart);
+      if (!isNaN(ws)) {
+        start = new Date(ws);
+        start.setHours(0, 0, 0, 0);
+      }
+    } else if (week) {
+      const y = Number(weekYear) || now.getFullYear();
+      const w = Math.max(1, Number(week));
+      const jan1 = new Date(y, 0, 1);
+      const jan1Day = jan1.getDay();
+      const firstWeekStart = new Date(jan1);
+      firstWeekStart.setDate(jan1.getDate() - jan1Day);
+      start = new Date(firstWeekStart);
+      start.setDate(firstWeekStart.getDate() + (w - 1) * 7);
+      start.setHours(0, 0, 0, 0);
+    }
+    if (!start) {
+      start = new Date(now);
+      start.setDate(now.getDate() - now.getDay());
+      start.setHours(0, 0, 0, 0);
+    }
+    rangeStart = start;
+    rangeEnd = new Date(start);
+    rangeEnd.setDate(start.getDate() + 7);
+  } else if (normalizedPeriod === 'monthly' || !normalizedPeriod) {
+    const m = Number(month);
+    const y = Number(year);
+    if (!isNaN(m) && m >= 1 && m <= 12) {
+      const useYear = !isNaN(y) ? y : now.getFullYear();
+      rangeStart = new Date(useYear, m - 1, 1);
+      rangeEnd = new Date(useYear, m, 1);
+    } else {
+      rangeStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      rangeEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    }
+  }
+
+  if (rangeStart && rangeEnd) {
+    match.bookingDate = { $gte: rangeStart, $lt: rangeEnd };
+  }
+
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+  const skip = (page - 1) * limit;
+
+  const [bookings, total, counts] = await Promise.all([
+    Booking.find(match).lean()
+      .populate('userId', 'name email')
+      .populate('petId', 'name type')
+      .populate('serviceId', 'name serviceType')
+      .sort({ bookingDate: -1, bookingTime: -1 })
+      .skip(skip)
+      .limit(limit),
+    Booking.countDocuments(match),
+    Booking.aggregate([
+      { $match: match },
+      { $group: { _id: '$bookingStatus', count: { $sum: 1 } } }
+    ])
+  ]);
+
+  const statusCounts = { total, PENDING: 0, APPROVED: 0, COMPLETED: 0, REJECTED: 0, CANCELLED: 0 };
+  counts.forEach(c => { statusCounts[c._id] = c.count; });
+
+  res.status(200).json({
+    success: true,
+    businessId,
+    period: normalizedPeriod || 'monthly',
+    range: rangeStart && rangeEnd ? { start: rangeStart, end: rangeEnd } : undefined,
+    pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    counts: statusCounts,
+    bookings
+  });
+});

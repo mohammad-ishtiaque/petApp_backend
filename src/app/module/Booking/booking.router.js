@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createBooking, getBooking, getBookingDetails, deleteBooking, updateBooking, updateBookingStatusByOwner, cancelBookingByUser, getOwnerBookingOverview } = require('./booking.controller');
+const { createBooking, getBooking, getBookingDetails, deleteBooking, updateBooking, updateBookingStatusByOwner, cancelBookingByUser, getOwnerBookingOverview, getOwnerBookingStatusCounts, getBusinessCombinedBookings } = require('./booking.controller');
 const { authenticateUser, authenticateOwner } = require('../../middleware/auth.middleware');
 router.post('/create-booking', authenticateUser, createBooking);
 router.get('/get-bookings', authenticateUser, getBooking);
@@ -13,6 +13,8 @@ router.put('/:id/status', authenticateOwner, updateBookingStatusByOwner);
 router.put('/:id/cancel', authenticateUser, cancelBookingByUser);
 
 router.get('/get-booking-overview', authenticateOwner, getOwnerBookingOverview);
+router.get('/owner-status-counts', authenticateOwner, getOwnerBookingStatusCounts);
+router.get('/business/:businessId/bookings', authenticateOwner, getBusinessCombinedBookings);
 
 
 module.exports = router;

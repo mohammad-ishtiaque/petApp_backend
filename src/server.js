@@ -11,7 +11,7 @@ async function main() {
 
     await connectDB();
 
-    const HOST = process.env.BASE_URL || "0.0.0.0";
+    const HOST = process.env.UNIVERSAL || "0.0.0.0";
 
     const server = app.listen(PORT, HOST, () => {
       console.log(`Pet App Server is running on http://${HOST}:${PORT}`);
@@ -24,12 +24,7 @@ async function main() {
     const socketIO = new Server(server, {
       pingTimeout: 60000,
       cors: {
-        origin: [
-          "http://localhost:52643", // Local development (e.g., Flutter web running on this port)
-          "https://dating-admin-panel.pages.dev", // Production admin panel hosted on Cloudflare Pages (HTTPS)
-          "http://dating-admin-panel.pages.dev", // Optional: HTTP version in case SSL is not enforced (usually not needed)
-          "https://dating-admin-seven.vercel.app", // Production/staging admin panel hosted on Vercel
-        ],
+        origin: ["*"],
         credentials: true,
       },
     });

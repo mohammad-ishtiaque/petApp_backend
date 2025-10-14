@@ -68,6 +68,12 @@ const bookingSchema = new mongoose.Schema({
     
 }, { timestamps: true })
 
+// Indexes to speed up common queries and aggregations
+bookingSchema.index({ businessId: 1, bookingDate: 1, bookingStatus: 1 });
+bookingSchema.index({ serviceId: 1, bookingDate: 1 });
+bookingSchema.index({ ownerId: 1 });
+bookingSchema.index({ bookingStatus: 1 });
+
 const Booking = mongoose.model('Booking', bookingSchema);
 
 module.exports = Booking;

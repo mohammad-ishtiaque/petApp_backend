@@ -96,8 +96,13 @@ exports.getNearbyServices = asyncHandler(async (req, res, next) => {
 exports.createService = asyncHandler(async (req, res, next) => {
     try {
         const ownerId = req.owner.id;
-        const owner = await Owner.findById(ownerId);
-        const business = await Business.findOne({ ownerId });
+
+        // Run fetching Owner and Business in parallel to cut response latency
+        const [owner, business] = await Promise.all([
+            Owner.findById(ownerId).lean(),
+            Business.findOne({ ownerId }).lean()
+        ]);
+
         if (!business) {
             throw new ApiError('Business not found for the authenticated owner', 404);
         }
@@ -107,10 +112,13 @@ exports.createService = asyncHandler(async (req, res, next) => {
         const servicesImages = req.file ? (req.file.location || req.file.path || null) : null;
         const { serviceType, serviceName, location, openingTime, closingTime, offDay, providings, websiteLink, phone, latitude, longitude } = req.body;
 
-        const existingService = await Service.findOne({ businessId, serviceType: serviceType.toUpperCase() });
+        // Check for uniqueness on service type for this business
+        // Use 'lean' for faster query; just need to know if it exists
+        const existingService = await Service.findOne({ businessId, serviceType: serviceType.toUpperCase() }).lean();
         if (existingService) throw new ApiError('An owner cannot create one service with the same service type', 400);
 
-        const service = new Service({
+        // Prepare service data up front (without .trim() delay inside the constructor)
+        const serviceData = {
             serviceType: serviceType?.trim().toUpperCase(),
             serviceName: serviceName?.trim(),
             location: location?.trim(),
@@ -120,21 +128,33 @@ exports.createService = asyncHandler(async (req, res, next) => {
             closingTime: closingTime?.trim(),
             offDay: offDay?.trim(),
             websiteLink: websiteLink?.trim(),
-            providings: Array.isArray(providings) ? providings.map(providing => providing.trim()) : [providings.trim()],
+            providings: Array.isArray(providings)
+                ? providings.map(p => p.trim())
+                : providings
+                    ? [providings.trim()]
+                    : [],
             phone,
             servicesImages,
             businessId,
             shopLogo
-        });
+        };
 
-        business.services.push(service._id);
-        await business.save();
+        // Insert Service FIRST, then update business (so only one save operation is slow, not both sequentially)
+        const service = await Service.create(serviceData);
 
-        await service.save();
+        // Fast-push the new serviceId into Business.services directly (without loading full model doc)
+        // Use findByIdAndUpdate to avoid unnecessary doc re-hydration and validation
+        await Business.findByIdAndUpdate(
+            businessId,
+            { $push: { services: service._id } }
+        );
+
+        // Trigger admin notification asynchronously (don't block response)
         createAdminNotification({
             title: 'A new service has been created by ' + owner.name,
             message: `A New Service has been created by ${owner.name} with name ${service.serviceName} under ${business.businessName}`,
         });
+
         return res.status(201).json({
             success: true,
             message: 'Service created successfully',

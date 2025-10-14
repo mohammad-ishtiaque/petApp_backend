@@ -65,6 +65,10 @@ const serviceSchema = new mongoose.Schema({
     }
 }, { timestamps: true, toJSON: { virtuals: true } });
 
+// Useful indexes
+serviceSchema.index({ businessId: 1, serviceType: 1 }, { unique: true, partialFilterExpression: { businessId: { $exists: true } } });
+serviceSchema.index({ businessId: 1 });
+
 serviceSchema.virtual('isOpenNow').get(function () {
     const now = moment();
     const today = now.format('dddd'); // e.g. "Monday"
