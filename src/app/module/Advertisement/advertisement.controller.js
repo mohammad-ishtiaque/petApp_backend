@@ -7,15 +7,16 @@ const Business = require('../Business/Business');
 const Owner = require('../Owner/Owner');
 
 exports.createAdvertisement = async (req, res, next) => {
-
     try {
-        const ownerId = req.owner.id;
-        const business = await Business.findOne({ ownerId });
-        const businessId = business._id;
+        const ownerId = req.owner.id || req.owner.id;
+        console.log(ownerId);
+
+        const business = await Business.find({ ownerId });
+        console.log(business);
+        const businessId = business?._id;
         const advertisementImg = req.files;
         const businessType = business.businessType;
         // console.log(businessType);
-
         const advertisement = new Advertisement({
             advertisementImg: advertisementImg ? advertisementImg.map(file => file.location) : [],
             businessId,
@@ -25,8 +26,7 @@ exports.createAdvertisement = async (req, res, next) => {
 
         
         await advertisement.save();
-        // business.advertisement.push(...advertisement.advertisementImg);
-        // console.log(business);
+
         return res.status(201).json({
             success: true,
             message: 'Advertisement created successfully',

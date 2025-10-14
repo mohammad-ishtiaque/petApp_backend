@@ -34,7 +34,13 @@ exports.createTopBrand = asyncHandler(async (req, res) => {
 
 exports.getAllTopBrands = asyncHandler(async (req, res) => {
     const topBrands = await TopBrand.find();
-    if (!topBrands.length) throw new ApiError('Top brands not found', 404);
+    if (!topBrands.length) {
+        res.status(200).json({
+            success: true,
+            message: 'No top brands found',
+            topBrands
+        });
+    }
     res.status(200).json({
         success: true,
         message: 'Top brands fetched successfully',
