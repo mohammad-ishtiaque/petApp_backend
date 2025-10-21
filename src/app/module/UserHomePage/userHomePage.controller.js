@@ -23,7 +23,13 @@ exports.getServicesByType = asyncHandler(async (req, res) => {
     .lean()
     .populate("reviews", "comment rating");
 
-    if (!services.length) throw new ApiError('Services not found', 404);
+    if (!services.length) {
+        res.status(200).json({
+            success: true,
+            message: "Services not found",
+            services: []
+        });
+    };
   // Calculate average rating and isOpenNow
   const servicesWithStatus = services.map(service => {
     const ratings = service.reviews?.map(r => r.rating);

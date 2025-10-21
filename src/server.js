@@ -11,7 +11,7 @@ async function main() {
 
     await connectDB();
 
-    const HOST = process.env.UNIVERSAL || "0.0.0.0";
+    const HOST = process.env.BASE_URL || "0.0.0.0";
 
     const server = app.listen(PORT, HOST, () => {
       console.log(`Pet App Server is running on http://${HOST}:${PORT}`);
