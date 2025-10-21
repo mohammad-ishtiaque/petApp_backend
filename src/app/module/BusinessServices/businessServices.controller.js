@@ -7,7 +7,7 @@ const fs = require('fs');
 const { deleteFile } = require('../../../utils/unLinkFiles');
 const checkIfOpenNow = require('../../../utils/checkOpen');
 const Owner = require('../Owner/Owner');
-const {createAdminNotification} = require('../Notification/notification.controller');
+const { createAdminNotification } = require('../Notification/notification.controller');
 
 // Find nearby services by type within a radius (default 10km)
 exports.getNearbyServices = asyncHandler(async (req, res, next) => {
@@ -60,8 +60,8 @@ exports.getNearbyServices = asyncHandler(async (req, res, next) => {
                                     {
                                         $acos: {
                                             $add: [
-                                                { $multiply: [ { $sin: '$$lat1' }, { $sin: '$$lat2' } ] },
-                                                { $multiply: [ { $cos: '$$lat1' }, { $cos: '$$lat2' }, { $cos: { $subtract: ['$$lon2', '$$lon1'] } } ] }
+                                                { $multiply: [{ $sin: '$$lat1' }, { $sin: '$$lat2' }] },
+                                                { $multiply: [{ $cos: '$$lat1' }, { $cos: '$$lat2' }, { $cos: { $subtract: ['$$lon2', '$$lon1'] } }] }
                                             ]
                                         }
                                     }
@@ -168,7 +168,7 @@ exports.createService = asyncHandler(async (req, res, next) => {
 exports.getAllServices = asyncHandler(async (req, res, next) => {
     const ownerId = req.owner?.id || req.owner?._id;
     const business = await Business.findOne({ ownerId });
-    
+
 
     if (!business) {
         throw new ApiError('Business not found for the authenticated owner', 404);
@@ -277,14 +277,23 @@ exports.deleteService = asyncHandler(async (req, res, next) => {
 exports.getServicesById = asyncHandler(async (req, res, next) => {
     const serviceId = req.params.id;
     try {
-        const service = await Service.findById(serviceId);
+        const service = await Service.findById(serviceId).lean();
         if (!service) throw new ApiError('Service not found', 404);
-        // const shopLogo = await Business.findById(service.businessId);
-        // service.shopLogo = shopLogo;
+
+        const serviceData = {
+            ...service,
+            isOpenNow: checkIfOpenNow(service),
+            avgRating: service.reviews?.length 
+                ? parseFloat((service.reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / service.reviews.length).toFixed(1))
+                : 0
+        };
+
+        console.log(serviceData)
+
         res.status(200).json({
             success: true,
             message: 'Service fetched successfully',
-            service,
+            service: serviceData,
         });
     } catch (err) {
         throw new ApiError(err.message, 500);
