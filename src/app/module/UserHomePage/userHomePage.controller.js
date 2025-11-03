@@ -102,7 +102,13 @@ exports.allAdsWhichActive = asyncHandler(async (req, res) => {
         .skip(skip)
         .limit(limit);
 
-    if (!ads.length) throw new ApiError("Ads not found", 404);
+    if (!ads.length) {
+        res.status(200).json({
+            success: true,
+            message: "Ads not found",
+            ads: []
+        });
+    };
 
     const adsPic = ads.map((ad) => ad.advertisementImg);
 
@@ -124,11 +130,29 @@ exports.allAdsWhichActive = asyncHandler(async (req, res) => {
 exports.getActiveAdsDetails = asyncHandler(async (req, res) => {
     const adsId = req.params.id;
     const ads = await Advertisement.findOne({ status: 'ACTIVE', _id: adsId });
-    if (!ads) throw new ApiError('Ads not found', 404);
+    if (!ads) {
+        res.status(200).json({
+            success: true,
+            message: "Ads not found",
+            ads: []
+        });
+    };
     const business = await Business.findById(ads.businessId);
-    if (!business) throw new ApiError('Business not found', 404);
+    if (!business) {
+        res.status(200).json({
+            success: true,
+            message: "Business not found",
+            business: []
+        });
+    };
     const services = await Service.find({ businessId: ads.businessId });
-    if (!services.length) throw new ApiError('Services not found', 404);
+    if (!services.length) {
+        res.status(200).json({
+            success: true,
+            message: "Services not found",
+            services: []
+        });
+    };
     res.status(200).json({
         success: true,
         message: 'Ads fetched successfully',

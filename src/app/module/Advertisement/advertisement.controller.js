@@ -9,10 +9,10 @@ const Owner = require('../Owner/Owner');
 exports.createAdvertisement = async (req, res, next) => {
     try {
         const ownerId = req.owner.id || req.owner.id;
-        console.log(ownerId);
+        // console.log(ownerId);
 
         const business = await Business.find({ ownerId });
-        console.log(business);
+        // console.log(business);
         const businessId = business?._id;
         const advertisementImg = req.files;
         const businessType = business.businessType;
