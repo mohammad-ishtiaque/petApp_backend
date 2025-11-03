@@ -238,18 +238,14 @@ exports.getBookingsByServiceType = asyncHandler(async (req, res) => {
 
 exports.getBookedPetsByOwner = async (req, res, next) => {
   try {
-    const  ownerId  = req.params.id || req.params._id;
+    const ownerId = req.owner?.id || req.owner?._id;
 
-    // 1. Get all services under this owner
-    const services = await Service.find({ ownerId });
-    const serviceIds = services.map(service => service._id);
+    // 1. Find all bookings that belong to this owner
+    const bookings = await Booking.find({ ownerId }).select('petId').lean();
+    const petIds = [...new Set(bookings.map(b => b.petId).filter(Boolean))];
 
-    // 2. Get all bookings for those services
-    const bookings = await Booking.find({ serviceId: { $in: serviceIds } });
-    const userIds = [...new Set(bookings.map(b => b.userId.toString()))];
-
-    // 3. Get all pets under those users
-    const pets = await Pet.find({ userId: { $in: userIds } })
+    // 2. Fetch only those pets that are booked with this owner
+    const pets = await Pet.find({ _id: { $in: petIds } })
       .populate('userId', 'name email profilePic');
 
     // For each pet, populate its medicalHistory field with all medical history records
