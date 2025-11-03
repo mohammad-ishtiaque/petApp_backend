@@ -182,6 +182,11 @@ exports.getAllServices = asyncHandler(async (req, res, next) => {
 
     try {
         const services = await Service.find({ businessId })
+            .populate({
+                path: 'reviews',
+                select: 'rating comment userId createdAt',
+                populate: { path: 'userId', select: 'name email profilePic' }
+            })
             .skip(startIndex)
             .limit(limit)
             .lean();
@@ -277,7 +282,13 @@ exports.deleteService = asyncHandler(async (req, res, next) => {
 exports.getServicesById = asyncHandler(async (req, res, next) => {
     const serviceId = req.params.id;
     try {
-        const service = await Service.findById(serviceId).lean();
+        const service = await Service.findById(serviceId)
+            .populate({
+                path: 'reviews',
+                select: 'rating comment userId createdAt',
+                populate: { path: 'userId', select: 'name email profilePic' }
+            })
+            .lean();
         if (!service) throw new ApiError('Service not found', 404);
 
         const serviceData = {
