@@ -32,8 +32,8 @@ exports.createBooking = asyncHandler(async (req, res) => {
   const business = await Business.findById(businessId);
   const service = await Service.findById(serviceId);
   if(day === service.offDay){
-    return res.status(200).json({
-      success: true,
+    return res.status(404).json({
+      success: false,
       message: `Booking is not allowed on ${day}`,
     });
   }
