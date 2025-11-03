@@ -81,7 +81,6 @@ exports.login = async (req, res, next) => {
     const owner = await Owner.findOne({ email }).select('+password');
     const admin = await Admin.findOne({ email }).select('+password');
     const superAdmin = await Admin.findOne({ email }).select('+password');
-    // console.log(owner)
 
     if (!user && !owner && !admin && !superAdmin) throw new ApiError('User not found', 404);
 

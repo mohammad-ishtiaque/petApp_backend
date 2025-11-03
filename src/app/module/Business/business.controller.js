@@ -244,10 +244,10 @@ exports.addAdvertisement = async (req, res, next) => {
             title: 'A New Advertisement has been added by ' + owner.name,
             message: `A new advertisement has been added by ${owner.name}`,
         });
-        console.log(createAdminNotification({
-            title: 'A New Advertisement has been added by ' + owner.name,
-            message: `A new advertisement has been added by ${owner.name}`,
-        }))
+        // console.log(createAdminNotification({
+        //     title: 'A New Advertisement has been added by ' + owner.name,
+        //     message: `A new advertisement has been added by ${owner.name}`,
+        // }))
         return res.status(200).json({
             success: true,
             message: 'advertisement added successfully',
@@ -274,10 +274,10 @@ exports.deleteAdvertisement = async (req, res, next) => {
             title: 'An Advertisement has been deleted by ' + owner.name,
             message: `An advertisement has been deleted by ${owner.name}`,
         });
-        console.log(createAdminNotification({
-            title: 'An Advertisement has been deleted by ' + owner.name,
-            message: `An advertisement has been deleted by ${owner.name}`,
-        }))
+        // console.log(createAdminNotification({
+        //     title: 'An Advertisement has been deleted by ' + owner.name,
+        //     message: `An advertisement has been deleted by ${owner.name}`,
+        // }))
         return res.status(200).json({
             success: true,
             message: 'advertisement deleted successfully',

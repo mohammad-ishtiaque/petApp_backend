@@ -31,7 +31,7 @@ exports.createBooking = asyncHandler(async (req, res) => {
   const pet = await Pet.findById(petId);
   if (!pet) throw new ApiError("Pet not found", 404);
   const ownerId = business.ownerId;
-  console.log(ownerId);
+  // console.log(ownerId);
   const owner = await Owner.findById(ownerId);
 
   const booking = new Booking({
