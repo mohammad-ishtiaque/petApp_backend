@@ -299,7 +299,7 @@ exports.getServicesById = asyncHandler(async (req, res, next) => {
                 : 0
         };
 
-        console.log(serviceData)
+        // console.log(serviceData)
 
         res.status(200).json({
             success: true,
