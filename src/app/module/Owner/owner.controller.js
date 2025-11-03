@@ -48,7 +48,7 @@ exports.updateOwnerProfile = async (req, res, next) => {
         await deleteFile(path.join(__dirname, '..', '..', '..', owner.profilePic));
       }
       // Update with new profile picture path (normalize path)
-      owner.profilePic = req.file.path.replace(/\\/g, '/');
+      owner.profilePic = req.file.location;
     }
 
     owner.name = name || owner.name;
