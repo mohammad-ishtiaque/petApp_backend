@@ -145,7 +145,11 @@ exports.petMedicalHistoryById = async (req, res, next) => {
         ]);
 
         if (!medicalHistory || medicalHistory.length === 0) {
-            return next(new ApiError('No medical history found', 404));
+            return res.status(200).json({
+                success: true,
+                message: 'No medical history found',
+                medicalHistory: []
+            });
         }
 
         return res.status(200).json({
