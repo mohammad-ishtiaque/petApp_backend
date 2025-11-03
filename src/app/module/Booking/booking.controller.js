@@ -7,6 +7,7 @@ const Owner = require("../Owner/Owner");
 const Pet = require("../Pet/Pet");
 const User = require("../User/User");
 const QueryBuilder = require("../../../builder/queryBuilder");
+const {getWeekdayName} = require("../../../utils/checkDate");
 
 exports.createBooking = asyncHandler(async (req, res) => {
   const userId = req.user.id || req.user._id;
@@ -26,8 +27,17 @@ exports.createBooking = asyncHandler(async (req, res) => {
   } = req.body;
   // if (!serviceId || !bookingDate || !bookingTime || !bookingStatus || !notes || !businessId) throw new ApiError('All fields are required', 400);
 
+  const day = getWeekdayName(bookingDate);
+  
   const business = await Business.findById(businessId);
   const service = await Service.findById(serviceId);
+  if(day === service.offDay){
+    return res.status(200).json({
+      success: true,
+      message: `Booking is not allowed on ${day}`,
+    });
+  }
+  // console.log("service", service)
   const pet = await Pet.findById(petId);
   if (!pet) throw new ApiError("Pet not found", 404);
   const ownerId = business.ownerId;
