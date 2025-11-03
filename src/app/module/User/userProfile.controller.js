@@ -120,11 +120,32 @@ exports.changePassword = async (req, res, next) => {
 exports.deleteAccount = async (req, res, next) => {
     try {
         const userId = req?.user?.id || req?.user?._id;
+        const { email, password } = req.body || {};
 
-        let account = null;
-        account = await User.findById(userId) || await Owner.findById(userId);
+        if (!email || !password) {
+            throw new ApiError('Email and password are required to delete account', 400);
+        }
+
+        // Find the authenticated account (could be User or Owner)
+        let account = await User.findById(userId).select('+password');
+        if (!account) {
+            account = await Owner.findById(userId).select('+password');
+        }
 
         if (!account) throw new ApiError('Account not found', 404);
+
+        // Verify email matches the authenticated account
+        const reqEmail = String(email).trim().toLowerCase();
+        const accountEmail = String(account.email || '').trim().toLowerCase();
+        if (reqEmail !== accountEmail) {
+            throw new ApiError('Invalid credentials', 401);
+        }
+
+        // Verify password
+        const valid = await bcrypt.compare(password, account.password);
+        if (!valid) {
+            throw new ApiError('Invalid credentials', 401);
+        }
 
         await account.deleteOne();
 
