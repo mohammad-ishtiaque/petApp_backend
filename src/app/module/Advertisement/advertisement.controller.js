@@ -42,7 +42,13 @@ exports.getAdvertisement = async (req, res, next) => {
     const ownerId = req.owner.id;
     try {
         const advertisement = await Advertisement.find({ ownerId });
-        if (advertisement.length === 0) throw new ApiError('Advertisement not found', 404);
+        if (advertisement.length === 0) {
+            return res.status(200).json({
+                success: true,
+                message: 'Advertisement fetched successfully',
+                advertisement: []
+            });
+        }
         res.status(200).json({
             success: true,
             message: 'Advertisement fetched successfully',
@@ -80,7 +86,13 @@ exports.getAdvertisementByBusinessId = async (req, res, next) => {
     // const businessType = business.businessType;
     try {
         const advertisement = await Advertisement.find({ businessId, ownerId });
-        if (advertisement.length === 0) throw new ApiError('Advertisement not found', 404);
+        if (advertisement.length === 0) {
+            return res.status(200).json({
+                success: true,
+                message: 'Advertisement fetched successfully',
+                advertisement: []
+            });
+        }
         res.status(200).json({
             success: true,
             message: 'Advertisement fetched successfully',
@@ -110,7 +122,13 @@ exports.updateAdsStatus = async (req, res, next) => {
 exports.getAllAds = async (req, res, next) => {
     try {
         const advertisement = await Advertisement.find();
-        if (advertisement.length === 0) throw new ApiError('Advertisement not found', 404);
+        if (advertisement.length === 0) {
+            return res.status(200).json({
+                success: true,
+                message: 'Advertisement fetched successfully',
+                advertisement: []
+            });
+        }
 
         let owner;
         advertisement.forEach(async (ad) => {

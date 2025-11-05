@@ -8,6 +8,7 @@ const Pet = require("../Pet/Pet");
 const User = require("../User/User");
 const QueryBuilder = require("../../../builder/queryBuilder");
 const {getWeekdayName} = require("../../../utils/checkDate");
+const postNotification = require("../../../utils/postNotification");
 
 exports.createBooking = asyncHandler(async (req, res) => {
   const userId = req.user.id || req.user._id;
@@ -67,35 +68,12 @@ exports.createBooking = asyncHandler(async (req, res) => {
   await service.save();
   await booking.save();
 
-  const socketService = req.app.get("socketService");
-  if (socketService) {
-    try {
-      await socketService.sendNotification(
-        { id: ownerId, role: "OWNER" },
-        {
-          sender: { id: userId, role: "USER" },
-          type: "ACTION_REQUIRED",
-          title: "New Booking",
-          message: `New booking created by user ${userId}`,
-          data: { bookingId: booking._id, serviceId, businessId },
-          relatedEntity: { type: "BOOKING", id: booking._id },
-        }
-      );
-      await socketService.sendNotification(
-        { id: userId, role: "USER" },
-        {
-          sender: { id: ownerId, role: "OWNER" },
-          type: "SYSTEM",
-          title: "Booking Created",
-          message: "Your booking has been created successfully.",
-          data: { bookingId: booking._id, serviceId, businessId },
-          relatedEntity: { type: "BOOKING", id: booking._id },
-        }
-      );
-    } catch (e) {
-      console.error("Failed to send booking created notifications:", e);
-    }
-  }
+  postNotification("Booking Created", "Your booking has been created successfully.", userId, {
+    relatedEntity: { type: "Booking", id: booking._id },
+    sender: { id: userId, role: "USER" },
+    type: "ACTION_REQUIRED",
+    data: { booking },
+  });
 
   res.status(201).json({
     success: true,
@@ -166,6 +144,7 @@ exports.updateBooking = asyncHandler(async (req, res) => {
   booking.checkInDate = req.body.checkInDate || booking.checkInDate;
   booking.checkOutDate = req.body.checkOutDate || booking.checkOutDate;
   await booking.save();
+  postNotification("Booking Updated", "Your booking has been updated successfully.", booking.userId);
   res.status(200).json({
     success: true,
     message: "Booking updated successfully",
@@ -187,6 +166,17 @@ exports.deleteBooking = asyncHandler(async (req, res) => {
   });
 
   await booking.deleteOne();
+  await postNotification(
+  'Booking Updated',
+  'Your booking has been updated successfully.',
+  booking.userId,
+  {
+    sender: { id: booking.ownerId, role: 'OWNER' },
+    type: 'SYSTEM',
+    data: { bookingId: booking._id, status: booking.bookingStatus },
+    relatedEntity: { type: 'BOOKING', id: booking._id }
+  }
+);
 
   res.status(200).json({
     success: true,
@@ -223,28 +213,18 @@ exports.cancelBookingByUser = asyncHandler(async (req, res) => {
   booking.bookingStatus = "CANCELLED";
   booking.cancellationReason = cancellationReason || booking.cancellationReason;
   await booking.save();
-
-  // Notify the owner
-  try {
-    const socketService = req.app.get("socketService");
-    if (socketService) {
-      await socketService.sendNotification(
-        { id: booking.ownerId, role: "OWNER" },
-        {
-          sender: { id: booking.userId, role: "USER" },
-          type: "SYSTEM",
-          title: "Booking Cancelled",
-          message: cancellationReason
-            ? `User cancelled the booking. Reason: ${cancellationReason}`
-            : "User cancelled the booking.",
-          data: { bookingId: booking._id, status: "CANCELLED", cancellationReason },
-          relatedEntity: { type: "BOOKING", id: booking._id },
-        }
-      );
+  await postNotification(
+    'Booking Updated',
+    'Your booking has been updated successfully.',
+    booking.userId,
+    {
+      sender: { id: booking.ownerId, role: 'USER' },
+      recipient: { id: booking.userId, role: 'OWNER' },
+      type: 'SYSTEM',
+      data: { bookingId: booking._id, status: booking.bookingStatus },
+      relatedEntity: { type: 'BOOKING', id: booking._id }
     }
-  } catch (e) {
-    console.error("Failed to send owner cancellation notification:", e);
-  }
+  );
 
   res.status(200).json({
     success: true,
@@ -277,40 +257,18 @@ exports.updateBookingStatusByOwner = asyncHandler(async (req, res) => {
   }
   await booking.save();
 
-  // Notify user about status change
-  try {
-    const socketService = req.app.get("socketService");
-    if (socketService) {
-      let title = "Booking Updated";
-      let message = `Your booking status changed to ${status}.`;
-      if (status === "APPROVED") {
-        title = "Booking Approved";
-        message = "Your booking has been approved.";
-      } else if (status === "COMPLETED") {
-        title = "Booking Completed";
-        message = "Your booking has been completed.";
-      } else if (status === "CANCELLED") {
-        title = "Booking Cancelled";
-        message = cancellationReason
-          ? `Your booking was cancelled. Reason: ${cancellationReason}`
-          : "Your booking was cancelled.";
-      }
-
-      await socketService.sendNotification(
-        { id: booking.userId, role: "USER" },
-        {
-          sender: { id: booking.ownerId, role: "OWNER" },
-          type: "SYSTEM",
-          title,
-          message,
-          data: { bookingId: booking._id, status, cancellationReason },
-          relatedEntity: { type: "BOOKING", id: booking._id },
-        }
-      );
+  await postNotification(
+    'Booking Updated',
+    'Your booking has been updated successfully.',
+    booking.userId,
+    {
+      sender: { id: booking.ownerId, role: 'OWNER' },
+      recipient: { id: booking.userId, role: 'USER' },  
+      type: 'SYSTEM',
+      data: { bookingId: booking._id, status: booking.bookingStatus },
+      relatedEntity: { type: 'BOOKING', id: booking._id }
     }
-  } catch (e) {
-    console.error("Failed to send status update notification:", e);
-  }
+  );
 
   res.status(200).json({
     success: true,
@@ -334,16 +292,16 @@ exports.requestCancellation = asyncHandler(async (req, res) => {
   }`;
   await booking.save();
 
-  const socketService = req.app.get("socketService");
-  await socketService.sendNotification(
-    { id: booking.ownerId, role: "OWNER" },
+  await postNotification(
+    'Booking Cancellation Requested',
+    'Your booking cancellation has been requested successfully.',
+    booking.userId,
     {
-      sender: { id: booking.userId, role: "USER" },
-      type: "ACTION_REQUIRED",
-      title: "Cancellation Requested",
-      message: "User requested booking cancellation.",
-      data: { bookingId: booking._id },
-      relatedEntity: { type: "BOOKING", id: booking._id },
+      sender: { id: booking.ownerId, role: 'OWNER' },
+      recipient: { id: booking.userId, role: 'USER' },
+      type: 'SYSTEM',
+      data: { bookingId: booking._id, status: booking.bookingStatus },
+      relatedEntity: { type: 'BOOKING', id: booking._id }
     }
   );
 
@@ -364,16 +322,16 @@ exports.approveCancellation = asyncHandler(async (req, res) => {
   booking.bookingStatus = "REJECTED"; // or 'CANCELLED' if you extend enum
   await booking.save();
 
-  const socketService = req.app.get("socketService");
-  await socketService.sendNotification(
-    { id: booking.userId, role: "USER" },
+  await postNotification(
+    'Booking Cancellation Approved',
+    'Your booking cancellation has been approved successfully.',
+    booking.userId,
     {
-      sender: { id: booking.ownerId, role: "OWNER" },
-      type: "SYSTEM",
-      title: "Cancellation Approved",
-      message: "Your booking cancellation has been approved.",
-      data: { bookingId: booking._id },
-      relatedEntity: { type: "BOOKING", id: booking._id },
+      sender: { id: booking.ownerId, role: 'OWNER' },
+      recipient: { id: booking.userId, role: 'USER' },
+      type: 'SYSTEM',
+      data: { bookingId: booking._id, status: booking.bookingStatus },
+      relatedEntity: { type: 'BOOKING', id: booking._id }
     }
   );
 
