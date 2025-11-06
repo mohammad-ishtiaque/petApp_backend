@@ -28,8 +28,8 @@ exports.getServicesByType = asyncHandler(async (req, res) => {
         })
 
     if (!services.length) {
-        res.status(200).json({
-            success: true,
+        res.status(404).json({
+            success: false,
             message: "Services not found",
             services: []
         });

@@ -62,10 +62,21 @@ exports.createBooking = asyncHandler(async (req, res) => {
     checkInDate,
     checkOutDate,
   });
-  owner?.bookings?.push(booking._id); //push the booking id to the owner bookings
-  await owner.save();
-  service?.bookings?.push(booking._id);
-  await service.save();
+  console.log("owner", owner)
+  if (owner) {
+    owner.bookings = owner.bookings || [];
+    owner.bookings.push(booking._id); //push the booking id to the owner bookings
+    await owner.save();
+  } else {
+    console.warn(`No owner found for business ${businessId}`);
+  }
+  if (service) {
+    service.bookings = service.bookings || [];
+    service.bookings.push(booking._id);
+    await service.save();
+  } else {
+    console.warn(`No service found with id ${serviceId}`);
+  }
   await booking.save();
 
   postNotification("Booking Created", "Your booking has been created successfully.", userId, {
