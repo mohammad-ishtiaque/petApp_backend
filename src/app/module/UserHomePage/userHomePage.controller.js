@@ -28,12 +28,12 @@ exports.getServicesByType = asyncHandler(async (req, res) => {
         })
 
     if (!services.length) {
-        res.status(404).json({
+        return res.status(404).json({
             success: false,
             message: "Services not found",
             services: []
         });
-    };
+    }
     // Calculate average rating and isOpenNow
     const servicesWithStatus = services.map(service => {
         const ratings = service.reviews?.map(r => r.rating);
@@ -103,12 +103,12 @@ exports.allAdsWhichActive = asyncHandler(async (req, res) => {
         .limit(limit);
 
     if (!ads.length) {
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: "Ads not found",
             ads: []
         });
-    };
+    }
 
     const adsPic = ads.map((ad) => ad.advertisementImg);
 
@@ -131,28 +131,28 @@ exports.getActiveAdsDetails = asyncHandler(async (req, res) => {
     const adsId = req.params.id;
     const ads = await Advertisement.findOne({ status: 'ACTIVE', _id: adsId });
     if (!ads) {
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: "Ads not found",
             ads: []
         });
-    };
+    }
     const business = await Business.findById(ads.businessId);
     if (!business) {
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: "Business not found",
             business: []
         });
-    };
+    }
     const services = await Service.find({ businessId: ads.businessId });
     if (!services.length) {
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: "Services not found",
             services: []
         });
-    };
+    }
     res.status(200).json({
         success: true,
         message: 'Ads fetched successfully',

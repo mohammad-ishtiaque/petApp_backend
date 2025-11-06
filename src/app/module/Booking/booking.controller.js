@@ -31,7 +31,11 @@ exports.createBooking = asyncHandler(async (req, res) => {
   const day = getWeekdayName(bookingDate);
   
   const business = await Business.findById(businessId);
+  if (!business) throw new ApiError("Business not found", 404);
+  
   const service = await Service.findById(serviceId);
+  if (!service) throw new ApiError("Service not found", 404);
+  
   if(day === service.offDay){
     return res.status(404).json({
       success: false,
@@ -41,9 +45,12 @@ exports.createBooking = asyncHandler(async (req, res) => {
   // console.log("service", service)
   const pet = await Pet.findById(petId);
   if (!pet) throw new ApiError("Pet not found", 404);
+  
   const ownerId = business.ownerId;
-  // console.log(ownerId);
+  if (!ownerId) throw new ApiError("Business has no owner assigned", 404);
+  
   const owner = await Owner.findById(ownerId);
+  if (!owner) throw new ApiError("Owner not found", 404);
 
   const booking = new Booking({
     serviceId,
@@ -62,21 +69,16 @@ exports.createBooking = asyncHandler(async (req, res) => {
     checkInDate,
     checkOutDate,
   });
-  console.log("owner", owner)
-  if (owner) {
-    owner.bookings = owner.bookings || [];
-    owner.bookings.push(booking._id); //push the booking id to the owner bookings
-    await owner.save();
-  } else {
-    console.warn(`No owner found for business ${businessId}`);
-  }
-  if (service) {
-    service.bookings = service.bookings || [];
-    service.bookings.push(booking._id);
-    await service.save();
-  } else {
-    console.warn(`No service found with id ${serviceId}`);
-  }
+  
+  // Push booking to owner and service
+  owner.bookings = owner.bookings || [];
+  owner.bookings.push(booking._id);
+  await owner.save();
+  
+  service.bookings = service.bookings || [];
+  service.bookings.push(booking._id);
+  await service.save();
+  
   await booking.save();
 
   postNotification("Booking Created", "Your booking has been created successfully.", userId, {
