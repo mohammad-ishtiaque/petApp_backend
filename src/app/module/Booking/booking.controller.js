@@ -62,9 +62,9 @@ exports.createBooking = asyncHandler(async (req, res) => {
     checkInDate,
     checkOutDate,
   });
-  owner.bookings.push(booking._id); //push the booking id to the owner bookings
+  owner?.bookings?.push(booking._id); //push the booking id to the owner bookings
   await owner.save();
-  service.bookings.push(booking._id);
+  service?.bookings?.push(booking._id);
   await service.save();
   await booking.save();
 
