@@ -20,9 +20,7 @@ const authenticateUser = asyncHandler(async (req, res, next) => {
   if (!token) {
     throw new ApiError('Invalid authorization format', 401);
   }
-  // console.log(token);
   const decoded = tokenService.verifyAccessToken(token);
-  // console.log(decoded);
   if (!decoded || decoded.role !== 'USER') {
     throw new ApiError('Invalid or unauthorized token', 401);
   }

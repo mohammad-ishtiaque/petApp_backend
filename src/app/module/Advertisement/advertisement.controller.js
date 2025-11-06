@@ -43,9 +43,9 @@ exports.getAdvertisement = async (req, res, next) => {
     try {
         const advertisement = await Advertisement.find({ ownerId });
         if (advertisement.length === 0) {
-            return res.status(200).json({
-                success: true,
-                message: 'Advertisement fetched successfully',
+            return res.status(404).json({
+                success: false,
+                message: 'Advertisement not found',
                 advertisement: []
             });
         }
@@ -65,7 +65,11 @@ exports.deleteAdvertisement = async (req, res, next) => {
     const advertisementId = req.params.id;
     try {
         const advertisement = await Advertisement.findByIdAndDelete(advertisementId);
-        if (!advertisement) throw new ApiError('Advertisement not found', 404);
+        if (!advertisement) return res.status(404).json({
+            success: false,
+            message: 'Advertisement not found',
+            advertisement: []
+        });
         if (advertisement.advertisementImg.length > 0) {
             await Promise.all(advertisement.advertisementImg.map(file => deleteFile(location.join(__dirname, '..', '..', '..', 'uploads', file))));
         }
@@ -87,9 +91,9 @@ exports.getAdvertisementByBusinessId = async (req, res, next) => {
     try {
         const advertisement = await Advertisement.find({ businessId, ownerId });
         if (advertisement.length === 0) {
-            return res.status(200).json({
-                success: true,
-                message: 'Advertisement fetched successfully',
+            return res.status(404).json({
+                success: false,
+                message: 'Advertisement not found',
                 advertisement: []
             });
         }
@@ -108,7 +112,11 @@ exports.updateAdsStatus = async (req, res, next) => {
     const status = req.body.status;
     try {
         const advertisement = await Advertisement.findByIdAndUpdate(advertisementId, { status }, { new: true });
-        if (!advertisement) throw new ApiError('Advertisement not found', 404);
+        if (!advertisement) return res.status(404).json({
+            success: false,
+            message: 'Advertisement not found',
+            advertisement: []
+        });
         return res.status(200).json({
             success: true,
             message: 'Advertisement status updated successfully',
@@ -123,9 +131,9 @@ exports.getAllAds = async (req, res, next) => {
     try {
         const advertisement = await Advertisement.find();
         if (advertisement.length === 0) {
-            return res.status(200).json({
-                success: true,
-                message: 'Advertisement fetched successfully',
+            return res.status(404).json({
+                success: false,
+                message: 'Advertisement not found',
                 advertisement: []
             });
         }
