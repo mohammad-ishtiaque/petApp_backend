@@ -258,159 +258,159 @@ const getConversationList = catchAsync(async (req, res) => {
   }
 });
 
-// const blockUser = catchAsync(async (req, res) => {
-//   try {
-//     const userId = req.user.id;
-//     const { targetUserId } = req.params;
+const blockUser = catchAsync(async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { targetUserId } = req.params;
 
-//     if (userId === targetUserId) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "You cannot block yourself."
-//       });
-//     }
+    if (userId === targetUserId) {
+      return res.status(400).json({
+        success: false,
+        message: "You cannot block yourself."
+      });
+    }
 
-//     // Find or create conversation between users
-//     let conversation = await Conversation.findOne({
-//       participants: { $all: [userId, targetUserId] }
-//     });
+    // Find or create conversation between users
+    let conversation = await Conversation.findOne({
+      participants: { $all: [userId, targetUserId] }
+    });
 
-//     if (!conversation) {
-//       conversation = await Conversation.create({
-//         participants: [userId, targetUserId],
-//         messages: []
-//       });
-//     }
+    if (!conversation) {
+      conversation = await Conversation.create({
+        participants: [userId, targetUserId],
+        messages: []
+      });
+    }
 
-//     // Check if already blocked
-//     if (conversation.blockedBy.includes(userId)) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "You have already blocked this user."
-//       });
-//     }
+    // Check if already blocked
+    if (conversation.blockedBy.includes(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: "You have already blocked this user."
+      });
+    }
 
-//     // Add user to blockedBy array
-//     conversation.blockedBy.push(userId);
-//     await conversation.save();
+    // Add user to blockedBy array
+    conversation.blockedBy.push(userId);
+    await conversation.save();
 
-//     res.status(200).json({
-//       success: true,
-//       message: "User blocked successfully.",
-//       blocked: true
-//     });
-//   } catch (error) {
-//     console.error("Error blocking user:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Server error while blocking user."
-//     });
-//   }
-// });
+    res.status(200).json({
+      success: true,
+      message: "User blocked successfully.",
+      blocked: true
+    });
+  } catch (error) {
+    console.error("Error blocking user:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while blocking user."
+    });
+  }
+});
 
-// const unblockUser = catchAsync(async (req, res) => {
-//   try {
-//     const userId = req.user.id;
-//     const { targetUserId } = req.params;
+const unblockUser = catchAsync(async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { targetUserId } = req.params;
 
-//     const conversation = await Conversation.findOne({
-//       participants: { $all: [userId, targetUserId] }
-//     });
+    const conversation = await Conversation.findOne({
+      participants: { $all: [userId, targetUserId] }
+    });
 
-//     if (!conversation) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "No conversation found with this user."
-//       });
-//     }
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: "No conversation found with this user."
+      });
+    }
 
-//     // Check if user is in blockedBy array
-//     const isBlocked = conversation.blockedBy.includes(userId);
-//     if (!isBlocked) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "You have not blocked this user."
-//       });
-//     }
+    // Check if user is in blockedBy array
+    const isBlocked = conversation.blockedBy.includes(userId);
+    if (!isBlocked) {
+      return res.status(400).json({
+        success: false,
+        message: "You have not blocked this user."
+      });
+    }
 
-//     // Remove user from blockedBy array
-//     conversation.blockedBy = conversation.blockedBy.filter(
-//       id => id.toString() !== userId.toString()
-//     );
-//     await conversation.save();
+    // Remove user from blockedBy array
+    conversation.blockedBy = conversation.blockedBy.filter(
+      id => id.toString() !== userId.toString()
+    );
+    await conversation.save();
 
-//     res.status(200).json({
-//       success: true,
-//       message: "User unblocked successfully.",
-//       blocked: false
-//     });
-//   } catch (error) {
-//     console.error("Error unblocking user:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Server error while unblocking user."
-//     });
-//   }
-// });
+    res.status(200).json({
+      success: true,
+      message: "User unblocked successfully.",
+      blocked: false
+    });
+  } catch (error) {
+    console.error("Error unblocking user:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while unblocking user."
+    });
+  }
+});
 
-// const checkUserIsBlocked = catchAsync(async (req, res) => {
-//   try {
-//     const userId = req.user.id;
-//     const { targetUserId } = req.params;
+const checkUserIsBlocked = catchAsync(async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { targetUserId } = req.params;
 
-//     if (userId === targetUserId) {
-//       return res.status(200).json({
-//         success: true,
-//         isBlockedByYou: false,
-//         isBlockedByThem: false,
-//         canMessage: true,
-//         message: "Self-check - always allowed"
-//       });
-//     }
+    if (userId === targetUserId) {
+      return res.status(200).json({
+        success: true,
+        isBlockedByYou: false,
+        isBlockedByThem: false,
+        canMessage: true,
+        message: "Self-check - always allowed"
+      });
+    }
 
-//     const conversation = await Conversation.findOne({
-//       participants: { $all: [userId, targetUserId] }
-//     });
+    const conversation = await Conversation.findOne({
+      participants: { $all: [userId, targetUserId] }
+    });
 
-//     // If no conversation exists, no blocks exist
-//     if (!conversation) {
-//       return res.status(200).json({
-//         success: true,
-//         isBlockedByYou: false,
-//         isBlockedByThem: false,
-//         canMessage: true,
-//         message: "No conversation exists - messaging allowed"
-//       });
-//     }
+    // If no conversation exists, no blocks exist
+    if (!conversation) {
+      return res.status(200).json({
+        success: true,
+        isBlockedByYou: false,
+        isBlockedByThem: false,
+        canMessage: true,
+        message: "No conversation exists - messaging allowed"
+      });
+    }
 
-//     const isBlockedByYou = conversation.blockedBy.includes(userId);
-//     const isBlockedByThem = conversation.blockedBy.includes(targetUserId);
-//     const canMessage = !isBlockedByYou && !isBlockedByThem;
+    const isBlockedByYou = conversation.blockedBy.includes(userId);
+    const isBlockedByThem = conversation.blockedBy.includes(targetUserId);
+    const canMessage = !isBlockedByYou && !isBlockedByThem;
 
-//     let message = "Messaging allowed";
-//     if (isBlockedByYou && isBlockedByThem) {
-//       message = "Both users have blocked each other";
-//     } else if (isBlockedByYou) {
-//       message = "You have blocked this user";
-//     } else if (isBlockedByThem) {
-//       message = "This user has blocked you";
-//     }
+    let message = "Messaging allowed";
+    if (isBlockedByYou && isBlockedByThem) {
+      message = "Both users have blocked each other";
+    } else if (isBlockedByYou) {
+      message = "You have blocked this user";
+    } else if (isBlockedByThem) {
+      message = "This user has blocked you";
+    }
 
-//     res.status(200).json({
-//       success: true,
-//       isBlockedByYou,
-//       isBlockedByThem,
-//       canMessage,
-//       message
-//     });
-//   } catch (error) {
-//     console.error("Error checking block status:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Server error while checking block status."
-//     });
-//   }
-// });
+    res.status(200).json({
+      success: true,
+      isBlockedByYou,
+      isBlockedByThem,
+      canMessage,
+      message
+    });
+  } catch (error) {
+    console.error("Error checking block status:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while checking block status."
+    });
+  }
+});
 
 const blockToggle = catchAsync(async (req, res) => {
   try {
