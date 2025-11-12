@@ -222,10 +222,12 @@ socket.on("cancel-waiting", (data) => {
       }
       
         if (conversation.blockedBy.includes(senderId)) {
+          console.log("user blocked", { message: "You have blocked this conversation." })
           return socket.emit("error-message", { message: "You have blocked this conversation." });
         }
 
         if (conversation.blockedBy.includes(receiverId)) {
+          console.log("user blocked", { message: "You have blocked this conversation." })
           return socket.emit("error-message", { message: "You cannot send messages to this user." });
         }  
 

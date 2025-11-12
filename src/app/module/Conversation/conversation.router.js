@@ -25,9 +25,11 @@ const handleMulterError = (err, req, res, next) => {
 router.get("/get-conversation", authenticateOwnerAndUser, ConversationController.getConversation)
 .get("/get-conversation/:conversationId", authenticateOwnerAndUser, ConversationController.getConversationById)
 .get("/get-conversation-list", authenticateOwnerAndUser, ConversationController.getConversationList)
+// .get("/check-block/:targetUserId", authenticateOwnerAndUser, ConversationController.checkUserIsBlocked)
+// .post("/block/:targetUserId", authenticateOwnerAndUser, ConversationController.blockUser)
+// .post("/unblock/:targetUserId", authenticateOwnerAndUser, ConversationController.unblockUser)
 .post("/block-toggle/:conversationId", authenticateOwnerAndUser, ConversationController.blockToggle)
 .post("/delete-message/:messageId", authenticateOwnerAndUser, ConversationController.deleteMessage)
 .post("/chat-images-video", authenticateOwnerAndUser, uploadFields, handleMulterError, ConversationController.chatImageVideo);
-
 
 module.exports = router;

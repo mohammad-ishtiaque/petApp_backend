@@ -27,6 +27,10 @@ const conversationSchema = new Schema(
         type: Schema.Types.ObjectId,
         ref: "User",
       },
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Owner"
+      }
     ],
   },
   {
