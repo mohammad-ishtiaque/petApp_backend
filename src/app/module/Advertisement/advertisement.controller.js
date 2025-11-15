@@ -43,8 +43,8 @@ exports.getAdvertisement = async (req, res, next) => {
     try {
         const advertisement = await Advertisement.find({ ownerId });
         if (advertisement.length === 0) {
-            return res.status(404).json({
-                success: false,
+            return res.status(200).json({
+                success: true,
                 message: 'Advertisement not found',
                 advertisement: []
             });
@@ -131,8 +131,8 @@ exports.getAllAds = async (req, res, next) => {
     try {
         const advertisement = await Advertisement.find();
         if (advertisement.length === 0) {
-            return res.status(404).json({
-                success: false,
+            return res.status(200).json({
+                success: true,
                 message: 'Advertisement not found',
                 advertisement: []
             });
