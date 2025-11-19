@@ -71,7 +71,7 @@ exports.getServicesByType = asyncHandler(async (req, res) => {
         select: 'rating comment userId createdAt',
         populate: { path: 'userId', select: 'name email profilePic' }
     });
-    console.log(baseQuery);
+    // console.log(baseQuery);
 
     // Build enhanced query using QueryBuilder
     const queryBuilder = new QueryBuilder(baseQuery, req.query)
@@ -85,7 +85,7 @@ exports.getServicesByType = asyncHandler(async (req, res) => {
     const services = await queryBuilder.modelQuery.lean();
 
     // Handle empty
-    if (!services.length) {
+    if (!services) {
         return res.status(200).json({
             success: true,
             message: "Services not found",
