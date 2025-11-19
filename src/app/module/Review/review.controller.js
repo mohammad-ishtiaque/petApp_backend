@@ -77,7 +77,11 @@ exports.getAllReviewsByServiceId = asyncHandler(async (req, res, next) => {
 
     // console.log(users);
     if (!reviews) {
-        return next(new ApiError('Reviews not found', 404));
+        return res.status(404).json({
+            success: false,
+            message: 'Reviews not found',
+            reviews: []
+        });
     }
     const avgRating = reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length;
     res.status(200).json({
@@ -93,7 +97,11 @@ exports.getAllReviewsByServiceId = asyncHandler(async (req, res, next) => {
 exports.getAllReviewsByUserId = asyncHandler(async (req, res, next) => {
     const reviews = await Review.find({ userId: req.user.id || req.user._id });
     if (!reviews) {
-        return next(new ApiError('Reviews not found', 404));
+        return res.status(404).json({
+            success: false,
+            message: 'Reviews not found',
+            reviews: []
+        });
     }
     res.status(200).json({
         success: true,
@@ -112,7 +120,11 @@ exports.getOwnerServiceReviews = asyncHandler(async (req, res, next) => {
 
     // Find the owner's single business
     const business = await Business.findOne({ ownerId }).select('_id');
-    if (!business) return next(new ApiError('Business not found', 404));
+    if (!business) return res.status(404).json({
+        success: false,
+        message: 'Business not found',
+        reviews: []
+    });
 
     // Gather services under this business, optionally filtered by serviceType
     const serviceMatch = { businessId: business._id };
