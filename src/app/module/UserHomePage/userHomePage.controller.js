@@ -9,32 +9,91 @@ const Advertisement = require('../Advertisement/Advertisement');
 const asyncHandler = require('../../../utils/asyncHandler');
 const { ApiError } = require('../../../errors/errorHandler');
 const checkIfOpenNow = require('../../../utils/checkOpen');
+const QueryBuilder = require('../../../builder/queryBuilder');
+
+// exports.getServicesByType = asyncHandler(async (req, res) => {
+//     const type = req.params.type;
+//     const page = parseInt(req.query.page) || 1;
+//     const limit = parseInt(req.query.limit) || 10;
+//     const startIndex = (page - 1) * limit;
+
+//     // Fetch services with pagination
+//     const services = await Service.find({ serviceType: type.toUpperCase() })
+//         .skip(startIndex)
+//         .limit(limit)
+//         .lean()
+//         .populate({
+//             path: 'reviews',
+//             select: 'rating comment userId createdAt',
+//             populate: { path: 'userId', select: 'name email profilePic' }
+//         })
+
+//     if (!services.length) {
+//         return res.status(200).json({
+//             success: true,
+//             message: "Services not found",
+//             services: []
+//         });
+//     }
+//     // Calculate average rating and isOpenNow
+//     const servicesWithStatus = services.map(service => {
+//         const ratings = service.reviews?.map(r => r.rating);
+//         const avgRating = ratings?.length
+//             ? ratings.reduce((sum, r) => sum + r, 0) / ratings.length
+//             : 0;
+
+//         return {
+//             ...service,
+//             isOpenNow: checkIfOpenNow(service),
+//             avgRating: parseFloat(avgRating.toFixed(1)) // rounded to 1 decimal
+//         };
+//     });
+
+//     // Total count for pagination
+//     const total = await Service.countDocuments({ serviceType: type.toUpperCase() });
+
+//     res.status(200).json({
+//         success: true,
+//         message: services.length ? "Services fetched successfully" : "Services not found",
+//         services: servicesWithStatus,
+//         currentPage: page,
+//         pageSize: limit,
+//         total,
+//     });
+// });
 
 exports.getServicesByType = asyncHandler(async (req, res) => {
-    const type = req.params.type;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const startIndex = (page - 1) * limit;
+    const type = req.params.type?.toUpperCase();
 
-    // Fetch services with pagination
-    const services = await Service.find({ serviceType: type.toUpperCase() })
-        .skip(startIndex)
-        .limit(limit)
-        .lean()
-        .populate({
-            path: 'reviews',
-            select: 'rating comment userId createdAt',
-            populate: { path: 'userId', select: 'name email profilePic' }
-        })
+    // Inject base query (type filter)
+    const baseQuery = Service.find({ serviceType: type }).populate({
+        path: 'reviews',
+        select: 'rating comment userId createdAt',
+        populate: { path: 'userId', select: 'name email profilePic' }
+    });
+    console.log(baseQuery);
 
+    // Build enhanced query using QueryBuilder
+    const queryBuilder = new QueryBuilder(baseQuery, req.query)
+        .search(["serviceName", "location"]) // add your searchable fields here
+        .filter()
+        .sort()
+        .fields()
+        .paginate();
+
+    // Execute final query
+    const services = await queryBuilder.modelQuery.lean();
+
+    // Handle empty
     if (!services.length) {
-        return res.status(404).json({
-            success: false,
+        return res.status(200).json({
+            success: true,
             message: "Services not found",
-            services: []
+            services: [],
         });
     }
-    // Calculate average rating and isOpenNow
+
+    // Add avgRating + isOpenNow
     const servicesWithStatus = services.map(service => {
         const ratings = service.reviews?.map(r => r.rating);
         const avgRating = ratings?.length
@@ -44,29 +103,40 @@ exports.getServicesByType = asyncHandler(async (req, res) => {
         return {
             ...service,
             isOpenNow: checkIfOpenNow(service),
-            avgRating: parseFloat(avgRating.toFixed(1)) // rounded to 1 decimal
+            avgRating: parseFloat(avgRating.toFixed(1))
         };
     });
 
-    // Total count for pagination
-    const total = await Service.countDocuments({ serviceType: type.toUpperCase() });
+    // Pagination metadata
+    const meta = await queryBuilder.countTotal();
 
     res.status(200).json({
         success: true,
-        message: services.length ? "Services fetched successfully" : "Services not found",
+        message: "Services fetched successfully",
         services: servicesWithStatus,
-        currentPage: page,
-        pageSize: limit,
-        total,
+        meta,
     });
 });
 
 
+
 exports.totalPetsForLoggedInUser = asyncHandler(async (req, res) => {
     const totalPets = await Pet.countDocuments({ userId: req.user.id });
-    if (!totalPets) throw new ApiError('Pets not found', 404);
+    if (!totalPets) {
+        return res.status(404).json({
+            success: false,
+            message: "Pets not found",
+            pets: []
+        });
+    };
     const pets = await Pet.find({ userId: req.user.id });
-    if (!pets.length) throw new ApiError('Pets not found', 404);
+    if (!pets.length) {
+        return res.status(404).json({
+            success: false,
+            message: "Pets not found",
+            pets: []
+        });
+    };
     // console.log(pets);
     const petList = pets.map(pet => ({
         _id: pet._id,
@@ -126,7 +196,6 @@ exports.allAdsWhichActive = asyncHandler(async (req, res) => {
     });
 });
 
-
 exports.getActiveAdsDetails = asyncHandler(async (req, res) => {
     const adsId = req.params.id;
     const ads = await Advertisement.findOne({ status: 'ACTIVE', _id: adsId });
@@ -161,7 +230,6 @@ exports.getActiveAdsDetails = asyncHandler(async (req, res) => {
         services
     });
 });
-
 
 exports.getAllUserHomePageData = asyncHandler(async (req, res) => {
     const type = req.query.type;
@@ -428,5 +496,3 @@ exports.searchServices = asyncHandler(async (req, res) => {
         total
     });
 });
-
-
