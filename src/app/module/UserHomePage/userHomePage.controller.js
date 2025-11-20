@@ -123,16 +123,16 @@ exports.getServicesByType = asyncHandler(async (req, res) => {
 exports.totalPetsForLoggedInUser = asyncHandler(async (req, res) => {
     const totalPets = await Pet.countDocuments({ userId: req.user.id });
     if (!totalPets) {
-        return res.status(404).json({
-            success: false,
+        return res.status(200).json({
+            success: true,
             message: "Pets not found",
             pets: []
         });
     };
     const pets = await Pet.find({ userId: req.user.id });
     if (!pets.length) {
-        return res.status(404).json({
-            success: false,
+        return res.status(200).json({
+            success: true,
             message: "Pets not found",
             pets: []
         });
