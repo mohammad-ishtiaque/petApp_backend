@@ -57,7 +57,8 @@ const apiRoutes = [
   { path: '/api/top-brands', route: require('./app/module/Dashboard/TopBrands/topbrands.router') },
   { path: '/api/chat', route: require('./app/module/Conversation/conversation.router') },
   { path: '/api/notifications', route: require('./app/module/Notification/notification.router') },
-  { path: '/api/manage', route: require('./app/module/Dashboard/Manage/manage.routes') }
+  { path: '/api/manage', route: require('./app/module/Dashboard/Manage/manage.routes') },
+  { path: '/api/webhooks', route: require('./app/module/Webhook/webhook.routes') }
   // Add more routes as needed
 
 ];
@@ -85,7 +86,7 @@ apiRoutes.forEach(route => {
 app.get('/', (req, res) => {
   res.status(200).json({
     status: 'success',
-    message: 'Server is healthy'
+    message: 'Snasaland Server is healthy'
   });
 });
 

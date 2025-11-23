@@ -60,7 +60,26 @@ const ownerSchema = new mongoose.Schema({
     default: Date.now
   },
   bookings: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Booking' }],
-  businesses: { type: mongoose.Schema.Types.ObjectId, ref: 'Business' }
+  businesses: { type: mongoose.Schema.Types.ObjectId, ref: 'Business' },
+  subscription: {
+    isActive: {
+      type: Boolean,
+      default: false
+    },
+    planIdentifier: {
+      type: String
+    },
+    expirationDate: {
+      type: Date
+    },
+    originalTransactionId: {
+      type: String
+    },
+    store: {
+      type: String,
+      enum: ['APP_STORE', 'PLAY_STORE', 'STRIPE', 'PROMOTIONAL']
+    }
+  }
 });
 
 module.exports = mongoose.model('Owner', ownerSchema);
