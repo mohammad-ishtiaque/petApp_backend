@@ -5,10 +5,18 @@ const handleRevenueCatWebhook = async (req, res) => {
     const { event, api_version } = req.body;
     const authHeader = req.headers.authorization;
 
-    // 1. Security Check
+    // 1. Security Check - Debug logging
+    console.log('🔍 Authorization Debug:');
+    console.log('Received header:', authHeader);
+    console.log('Expected:', `Bearer ${process.env.REVENUECAT_WEBHOOK_AUTH_TOKEN}`);
+    console.log('Match:', authHeader === `Bearer ${process.env.REVENUECAT_WEBHOOK_AUTH_TOKEN}`);
+
     if (!authHeader || authHeader !== `Bearer ${process.env.REVENUECAT_WEBHOOK_AUTH_TOKEN}`) {
+      console.log('❌ Authorization failed');
       return res.status(401).json({ message: 'Unauthorized' });
     }
+
+    console.log('✅ Authorization successful');
 
     if (!event) {
       return res.status(400).json({ message: 'Invalid payload' });
@@ -17,13 +25,15 @@ const handleRevenueCatWebhook = async (req, res) => {
     const { type, app_user_id, product_id, expiration_at_ms, original_transaction_id, store } = event;
 
     // 2. Find Owner
-    // Assuming app_user_id is the Owner's MongoDB _id
-    const owner = await Owner.findById(app_user_id);
+    // RevenueCat sends UUID format, we need to find by revenueCatUserId field
+    const owner = await Owner.findOne({ revenueCatUserId: app_user_id });
     if (!owner) {
       console.warn(`Owner not found for app_user_id: ${app_user_id}`);
       // Return 200 to acknowledge receipt even if user not found, to prevent retries
       return res.status(200).json({ message: 'Owner not found' });
     }
+
+    console.log(`✅ Found owner: ${owner.email}`);
 
     // 3. Handle Events
     let subscriptionUpdate = {};
@@ -67,14 +77,18 @@ const handleRevenueCatWebhook = async (req, res) => {
           'subscription.isActive': false
         };
         break;
-        
+
       default:
         console.log(`Unhandled event type: ${type}`);
     }
 
     // 4. Update Owner
     if (Object.keys(subscriptionUpdate).length > 0) {
-      await Owner.findByIdAndUpdate(app_user_id, { $set: subscriptionUpdate });
+      await Owner.findOneAndUpdate(
+        { revenueCatUserId: app_user_id },
+        { $set: subscriptionUpdate }
+      );
+      console.log(`✅ Updated subscription for ${owner.email}:`, subscriptionUpdate);
     }
 
     res.status(200).json({ message: 'Webhook processed successfully' });

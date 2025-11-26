@@ -6,13 +6,13 @@ const ownerSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  email: { 
-    type: String, 
-    unique: true, 
+  email: {
+    type: String,
+    unique: true,
     required: true,
     trim: true
-    },
-  password: {   
+  },
+  password: {
     type: String,
     required: true
   },
@@ -38,6 +38,11 @@ const ownerSchema = new mongoose.Schema({
     type: String,
     enum: ['USER', 'ADMIN', 'OWNER'],
     default: 'OWNER'
+  },
+  revenueCatUserId: {
+    type: String,
+    unique: true,
+    sparse: true // allows null values while maintaining uniqueness for non-null values
   },
   verficationToken: {
     code: String,

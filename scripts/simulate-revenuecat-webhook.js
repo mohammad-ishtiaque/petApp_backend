@@ -15,7 +15,7 @@ const mockEvent = {
   event: {
     type: 'INITIAL_PURCHASE',
     id: 'evt_123456789',
-    app_user_id: '691ac0a66924c9cf9f770517', // REPLACE WITH A REAL OWNER ID FROM YOUR DB
+    app_user_id: '69254296617710b4a784e22b', // REPLACE WITH A REAL OWNER ID FROM YOUR DB
     product_id: 'monthly_pro',
     expiration_at_ms: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30 days from now
     purchased_at_ms: Date.now(),
