@@ -7,7 +7,7 @@ const Owner = require("../Owner/Owner");
 const Pet = require("../Pet/Pet");
 const User = require("../User/User");
 const QueryBuilder = require("../../../builder/queryBuilder");
-const {getWeekdayName} = require("../../../utils/checkDate");
+const { getWeekdayName } = require("../../../utils/checkDate");
 const postNotification = require("../../../utils/postNotification");
 
 exports.createBooking = asyncHandler(async (req, res) => {
@@ -29,14 +29,14 @@ exports.createBooking = asyncHandler(async (req, res) => {
   // if (!serviceId || !bookingDate || !bookingTime || !bookingStatus || !notes || !businessId) throw new ApiError('All fields are required', 400);
 
   const day = getWeekdayName(bookingDate);
-  
+
   const business = await Business.findById(businessId);
   if (!business) throw new ApiError("Business not found", 404);
-  
+
   const service = await Service.findById(serviceId);
   if (!service) throw new ApiError("Service not found", 404);
-  
-  if(day === service.offDay){
+
+  if (day === service.offDay) {
     return res.status(404).json({
       success: false,
       message: `Booking is not allowed on ${day}`,
@@ -45,10 +45,10 @@ exports.createBooking = asyncHandler(async (req, res) => {
   // console.log("service", service)
   const pet = await Pet.findById(petId);
   if (!pet) throw new ApiError("Pet not found", 404);
-  
+
   const ownerId = business.ownerId;
   if (!ownerId) throw new ApiError("Business has no owner assigned", 404);
-  
+
   const owner = await Owner.findById(ownerId);
   if (!owner) throw new ApiError("Owner not found", 404);
 
@@ -69,16 +69,16 @@ exports.createBooking = asyncHandler(async (req, res) => {
     checkInDate,
     checkOutDate,
   });
-  
+
   // Push booking to owner and service
   owner.bookings = owner.bookings || [];
   owner.bookings.push(booking._id);
   await owner.save();
-  
+
   service.bookings = service.bookings || [];
   service.bookings.push(booking._id);
   await service.save();
-  
+
   await booking.save();
 
   postNotification("Booking Created", "Your booking has been created successfully.", userId, {
@@ -98,7 +98,7 @@ exports.createBooking = asyncHandler(async (req, res) => {
 exports.getBooking = asyncHandler(async (req, res) => {
   const query = { userId: req.user.id || req.user._id };
   const queryObj = { ...req.query };
-  
+
   // Create query builder instance
   const bookingQuery = new QueryBuilder(Booking.find(query), queryObj)
     .search(['bookingStatus', 'notes']) // Add searchable fields if needed
@@ -112,7 +112,7 @@ exports.getBooking = asyncHandler(async (req, res) => {
     "serviceId",
     "serviceType isOpenNow businessId shopLogo location phone servicesImages websiteLink"
   );
-  
+
   const { page, limit, total, totalPage } = await bookingQuery.countTotal();
 
   if (!bookings || bookings.length === 0) {
@@ -180,16 +180,16 @@ exports.deleteBooking = asyncHandler(async (req, res) => {
 
   await booking.deleteOne();
   await postNotification(
-  'Booking Updated',
-  'Your booking has been updated successfully.',
-  booking.userId,
-  {
-    sender: { id: booking.ownerId, role: 'OWNER' },
-    type: 'SYSTEM',
-    data: { bookingId: booking._id, status: booking.bookingStatus },
-    relatedEntity: { type: 'BOOKING', id: booking._id }
-  }
-);
+    'Booking Updated',
+    'Your booking has been updated successfully.',
+    booking.userId,
+    {
+      sender: { id: booking.ownerId, role: 'OWNER' },
+      type: 'SYSTEM',
+      data: { bookingId: booking._id, status: booking.bookingStatus },
+      relatedEntity: { type: 'BOOKING', id: booking._id }
+    }
+  );
 
   res.status(200).json({
     success: true,
@@ -276,7 +276,7 @@ exports.updateBookingStatusByOwner = asyncHandler(async (req, res) => {
     booking.userId,
     {
       sender: { id: booking.ownerId, role: 'OWNER' },
-      recipient: { id: booking.userId, role: 'USER' },  
+      recipient: { id: booking.userId, role: 'USER' },
       type: 'SYSTEM',
       data: { bookingId: booking._id, status: booking.bookingStatus },
       relatedEntity: { type: 'BOOKING', id: booking._id }
@@ -300,9 +300,8 @@ exports.requestCancellation = asyncHandler(async (req, res) => {
   }
 
   // Optional: store a flag/notes; or you can reuse bookingStatus if you plan a state
-  booking.notes = `${booking.notes || ""}\nCancellation requested by user ${
-    req.user.id
-  }`;
+  booking.notes = `${booking.notes || ""}\nCancellation requested by user ${req.user.id
+    }`;
   await booking.save();
 
   await postNotification(
@@ -358,129 +357,129 @@ exports.approveCancellation = asyncHandler(async (req, res) => {
  *   - serviceId (optional): filter bookings by a specific service
  *   - status (optional): filter by bookingStatus (e.g., "COMPLETED", "PENDING")
  */
-exports.getOwnerBookingOverview = asyncHandler(async (req, res) => {
-  const ownerId = req.owner.id || req.owner._id;
-  const { serviceId, status, month, year, weekStart, week, weekYear } = req.query;
+// exports.getOwnerBookingOverview = asyncHandler(async (req, res) => {
+//   const ownerId = req.owner.id || req.owner._id;
+//   const { serviceId, status, month, year, weekStart, week, weekYear } = req.query;
 
-  // 1. Find all services for this owner
-  // Service documents are linked to Business via businessId, and Business has ownerId
-  let services = [];
-  if (serviceId) {
-    services = await Service.find({ _id: serviceId }).select('_id name');
-  } else {
-    const businesses = await Business.find({ ownerId }).select('_id');
-    const businessIds = businesses.map(b => b._id);
-    if (businessIds.length === 0) {
-      return res.status(200).json({
-        success: true,
-        services: [],
-        totalBookings: 0,
-        bookings: [],
-        stats: { weekly: { total: 0, completed: 0 }, monthly: { total: 0, completed: 0 } }
-      });
-    }
-    services = await Service.find({ businessId: { $in: businessIds } }).select('_id name');
-  }
-  const serviceIds = services.map(s => s._id);
+//   // 1. Find all services for this owner
+//   // Service documents are linked to Business via businessId, and Business has ownerId
+//   let services = [];
+//   if (serviceId) {
+//     services = await Service.find({ _id: serviceId }).select('_id name');
+//   } else {
+//     const businesses = await Business.find({ ownerId }).select('_id');
+//     const businessIds = businesses.map(b => b._id);
+//     if (businessIds.length === 0) {
+//       return res.status(200).json({
+//         success: true,
+//         services: [],
+//         totalBookings: 0,
+//         bookings: [],
+//         stats: { weekly: { total: 0, completed: 0 }, monthly: { total: 0, completed: 0 } }
+//       });
+//     }
+//     services = await Service.find({ businessId: { $in: businessIds } }).select('_id name');
+//   }
+//   const serviceIds = services.map(s => s._id);
 
-  // 2. Build booking query
-  const bookingQuery = { serviceId: { $in: serviceIds } };
-  if (status) {
-    const normalizedStatus = String(status).toUpperCase();
-    bookingQuery.bookingStatus = normalizedStatus;
-  }
+//   // 2. Build booking query
+//   const bookingQuery = { serviceId: { $in: serviceIds } };
+//   if (status) {
+//     const normalizedStatus = String(status).toUpperCase();
+//     bookingQuery.bookingStatus = normalizedStatus;
+//   }
 
-  // 3. Get all bookings for these services
-  const bookings = await Booking.find(bookingQuery)
-    .populate('userId', 'name email')
-    .populate('petId', 'name type')
-    .populate('serviceId', 'name')
-    .sort({ bookingDate: -1, bookingTime: -1 });
+//   // 3. Get all bookings for these services
+//   const bookings = await Booking.find(bookingQuery)
+//     .populate('userId', 'name email')
+//     .populate('petId', 'name type')
+//     .populate('serviceId', 'name')
+//     .sort({ bookingDate: -1, bookingTime: -1 });
 
 
-  // 4. Calculate stats
-  const now = new Date();
+//   // 4. Calculate stats
+//   const now = new Date();
 
-  // Compute week range (defaults to current week Sunday-Sunday)
-  let startOfWeek;
-  if (weekStart) {
-    const ws = new Date(weekStart);
-    if (!isNaN(ws)) {
-      startOfWeek = new Date(ws);
-      startOfWeek.setHours(0, 0, 0, 0);
-    }
-  }
-  if (!startOfWeek && week) {
-    // Derive from week number (1-based) and optional weekYear (defaults to current year)
-    const y = Number(weekYear) || now.getFullYear();
-    const w = Math.max(1, Number(week));
-    const jan1 = new Date(y, 0, 1);
-    const jan1Day = jan1.getDay(); // 0 = Sunday
-    const firstWeekStart = new Date(jan1);
-    firstWeekStart.setDate(jan1.getDate() - jan1Day); // back to Sunday of the first week grid
-    startOfWeek = new Date(firstWeekStart);
-    startOfWeek.setDate(firstWeekStart.getDate() + (w - 1) * 7);
-    startOfWeek.setHours(0, 0, 0, 0);
-  }
-  if (!startOfWeek) {
-    startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
-    startOfWeek.setHours(0, 0, 0, 0);
-  }
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 7);
+//   // Compute week range (defaults to current week Sunday-Sunday)
+//   let startOfWeek;
+//   if (weekStart) {
+//     const ws = new Date(weekStart);
+//     if (!isNaN(ws)) {
+//       startOfWeek = new Date(ws);
+//       startOfWeek.setHours(0, 0, 0, 0);
+//     }
+//   }
+//   if (!startOfWeek && week) {
+//     // Derive from week number (1-based) and optional weekYear (defaults to current year)
+//     const y = Number(weekYear) || now.getFullYear();
+//     const w = Math.max(1, Number(week));
+//     const jan1 = new Date(y, 0, 1);
+//     const jan1Day = jan1.getDay(); // 0 = Sunday
+//     const firstWeekStart = new Date(jan1);
+//     firstWeekStart.setDate(jan1.getDate() - jan1Day); // back to Sunday of the first week grid
+//     startOfWeek = new Date(firstWeekStart);
+//     startOfWeek.setDate(firstWeekStart.getDate() + (w - 1) * 7);
+//     startOfWeek.setHours(0, 0, 0, 0);
+//   }
+//   if (!startOfWeek) {
+//     startOfWeek = new Date(now);
+//     startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
+//     startOfWeek.setHours(0, 0, 0, 0);
+//   }
+//   const endOfWeek = new Date(startOfWeek);
+//   endOfWeek.setDate(startOfWeek.getDate() + 7);
 
-  // Compute month range (defaults to current month)
-  let startOfMonth;
-  let endOfMonth;
-  const m = Number(month);
-  const y = Number(year);
-  if (!isNaN(m) && m >= 1 && m <= 12) {
-    const useYear = !isNaN(y) ? y : now.getFullYear();
-    startOfMonth = new Date(useYear, m - 1, 1);
-    endOfMonth = new Date(useYear, m, 1);
-  } else {
-    startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  }
+//   // Compute month range (defaults to current month)
+//   let startOfMonth;
+//   let endOfMonth;
+//   const m = Number(month);
+//   const y = Number(year);
+//   if (!isNaN(m) && m >= 1 && m <= 12) {
+//     const useYear = !isNaN(y) ? y : now.getFullYear();
+//     startOfMonth = new Date(useYear, m - 1, 1);
+//     endOfMonth = new Date(useYear, m, 1);
+//   } else {
+//     startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+//     endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+//   }
 
-  // Helper to check if a booking is in a date range
-  function isInRange(date, start, end) {
-    return date >= start && date < end;
-  }
+//   // Helper to check if a booking is in a date range
+//   function isInRange(date, start, end) {
+//     return date >= start && date < end;
+//   }
 
-  let weeklyIn = 0, weeklyCompleted = 0, monthlyIn = 0, monthlyCompleted = 0;
-  bookings.forEach(b => {
-    const bookingDate = b.bookingDate instanceof Date ? b.bookingDate : new Date(b.bookingDate);
-    // Weekly
-    if (isInRange(bookingDate, startOfWeek, endOfWeek)) {
-      weeklyIn++;
-      if (b.bookingStatus === 'COMPLETED') weeklyCompleted++;
-    }
-    // Monthly
-    if (isInRange(bookingDate, startOfMonth, endOfMonth)) {
-      monthlyIn++;
-      if (b.bookingStatus === 'COMPLETED') monthlyCompleted++;
-    }
-  });
+//   let weeklyIn = 0, weeklyCompleted = 0, monthlyIn = 0, monthlyCompleted = 0;
+//   bookings.forEach(b => {
+//     const bookingDate = b.bookingDate instanceof Date ? b.bookingDate : new Date(b.bookingDate);
+//     // Weekly
+//     if (isInRange(bookingDate, startOfWeek, endOfWeek)) {
+//       weeklyIn++;
+//       if (b.bookingStatus === 'COMPLETED') weeklyCompleted++;
+//     }
+//     // Monthly
+//     if (isInRange(bookingDate, startOfMonth, endOfMonth)) {
+//       monthlyIn++;
+//       if (b.bookingStatus === 'COMPLETED') monthlyCompleted++;
+//     }
+//   });
 
-  res.status(200).json({
-    success: true,
-    services: services.map(s => ({ id: s._id, name: s.name })),
-    totalBookings: bookings.length,
-    bookings,
-    stats: {
-      weekly: {
-        total: weeklyIn,
-        completed: weeklyCompleted,
-      },
-      monthly: {
-        total: monthlyIn,
-        completed: monthlyCompleted,
-      }
-    }
-  });
-});
+//   res.status(200).json({
+//     success: true,
+//     services: services.map(s => ({ id: s._id, name: s.name })),
+//     totalBookings: bookings.length,
+//     bookings,
+//     stats: {
+//       weekly: {
+//         total: weeklyIn,
+//         completed: weeklyCompleted,
+//       },
+//       monthly: {
+//         total: monthlyIn,
+//         completed: monthlyCompleted,
+//       }
+//     }
+//   });
+// });
 
 /**
  * Get per-status booking counts for the authenticated owner.

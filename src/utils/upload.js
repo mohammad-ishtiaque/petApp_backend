@@ -7,7 +7,7 @@ const { ApiError } = require("../errors/errorHandler");
 // Allowed file types
 const allowedImageTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
 const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/x-matroska", "video/webm"];
-const allowedPdfTypes = ["application/pdf"];
+const allowedPdfTypes = ["application/pdf", "application/html"];
 
 // File filter
 const fileFilter = (req, file, cb) => {
@@ -29,7 +29,7 @@ const upload = multer({
       cb(null, file.mimetype);
     },
     contentDisposition: (req, file, cb) => {
-      if (file.mimetype === "application/pdf" || file.mimetype.startsWith("image/")) {
+      if (file.mimetype === "application/pdf" || file.mimetype.startsWith("image/") || file.mimetype === "application/html") {
         // Force browser to open PDFs inline
         cb(null, "inline");
       } else {
@@ -44,6 +44,8 @@ const upload = multer({
         folder = "videos";
       } else if (file.mimetype === "application/pdf") {
         folder = "pdfs";
+      } else if (file.mimetype === "application/html") {
+        folder = "htmls";
       }
       const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
       cb(null, `${folder}/${uniqueSuffix}${path.extname(file.originalname)}`);
