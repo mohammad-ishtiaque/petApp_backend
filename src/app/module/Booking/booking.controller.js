@@ -88,6 +88,15 @@ exports.createBooking = asyncHandler(async (req, res) => {
     data: { booking },
   });
 
+  console.log("ownerId", ownerId)
+
+  postNotification("Booking Created", "A new booking has been created.", ownerId, {
+    relatedEntity: { type: "Booking", id: booking._id },
+    sender: { id: ownerId, role: "OWNER" },
+    type: "ACTION_REQUIRED",
+    data: { booking },
+  });
+
   res.status(201).json({
     success: true,
     message: "Booking created successfully",
