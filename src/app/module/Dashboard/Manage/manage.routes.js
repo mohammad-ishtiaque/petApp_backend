@@ -61,6 +61,7 @@ router
         "/delete-contact-us",
         authenticateAdminOrSuperAdmin,
         ManageController.deleteContactUs
-    );
+    )
+    .get("/get-privacy-policy1", ManageController.getPrivacyPolicy1);
 
 module.exports = router;
