@@ -171,6 +171,7 @@ const deleteContactUs = asyncHandler(async (req, res) => {
 const ManageController = {
   addPrivacyPolicy,
   getPrivacyPolicy,
+  getPrivacyPolicy1,
   deletePrivacyPolicy,
   addTermsConditions,
   getTermsConditions,
