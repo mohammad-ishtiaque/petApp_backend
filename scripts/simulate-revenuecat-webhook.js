@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const path = require('path');
 
@@ -6,8 +5,8 @@ const path = require('path');
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const TEST_TOKEN = process.env.REVENUECAT_WEBHOOK_AUTH_TOKEN || 'test_token';
-const API_URL = 'http://127.0.0.1:8001/api/webhooks/revenuecat';
-const HEALTH_URL = 'http://127.0.0.1:8001/';
+const API_URL = 'https://api.sansaland.com/api/webhooks/revenuecat';
+const HEALTH_URL = 'https://api.sansaland.com';
 
 // Mock Data
 const mockEvent = {
@@ -15,7 +14,7 @@ const mockEvent = {
   event: {
     type: 'INITIAL_PURCHASE',
     id: 'evt_123456789',
-    app_user_id: '69254296617710b4a784e22b', // REPLACE WITH A REAL OWNER ID FROM YOUR DB
+    app_user_id: '69254296617710b4a784e22b', // REPLACE WITH A REAL revenueCatUserId FROM YOUR DB
     product_id: 'monthly_pro',
     expiration_at_ms: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30 days from now
     purchased_at_ms: Date.now(),
@@ -43,7 +42,8 @@ async function runTest() {
     const response = await fetch(API_URL, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        // RevenueCat sends the exact Authorization header value configured in the dashboard.
+        'Authorization': TEST_TOKEN,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(mockEvent)
