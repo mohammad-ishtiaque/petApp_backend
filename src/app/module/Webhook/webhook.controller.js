@@ -24,6 +24,8 @@ const getAcceptedAuthHeaders = () => {
   return [trimmedValue, `Bearer ${trimmedValue}`];
 };
 
+const isAnonymousRevenueCatId = value => typeof value === 'string' && value.startsWith('$RCAnonymousID:');
+
 const extractOwnerLookupCandidates = event => {
   const candidates = [];
   const pushCandidate = value => {
@@ -39,7 +41,26 @@ const extractOwnerLookupCandidates = event => {
     event.aliases.forEach(pushCandidate);
   }
 
+  if (Array.isArray(event?.transferred_to)) {
+    event.transferred_to.forEach(pushCandidate);
+  }
+
+  if (Array.isArray(event?.transferred_from)) {
+    event.transferred_from.forEach(pushCandidate);
+  }
+
   return [...new Set(candidates)];
+};
+
+const chooseCanonicalRevenueCatUserId = event => {
+  const candidateIds = extractOwnerLookupCandidates(event);
+  const preferredNonAnonymousId = candidateIds.find(value => !isAnonymousRevenueCatId(value));
+
+  if (preferredNonAnonymousId) {
+    return preferredNonAnonymousId;
+  }
+
+  return event?.original_app_user_id || event?.app_user_id || candidateIds[0] || null;
 };
 
 const findOwnerForRevenueCatEvent = async event => {
@@ -128,7 +149,7 @@ const handleRevenueCatWebhook = async (req, res) => {
 
     console.log(`Found owner for RevenueCat webhook: ${owner.email} via ${matchedBy}`);
 
-    const canonicalRevenueCatUserId = event.original_app_user_id || app_user_id;
+    const canonicalRevenueCatUserId = chooseCanonicalRevenueCatUserId(event);
     if (canonicalRevenueCatUserId && owner.revenueCatUserId !== canonicalRevenueCatUserId) {
       owner.revenueCatUserId = canonicalRevenueCatUserId;
       await owner.save();
@@ -167,6 +188,14 @@ const handleRevenueCatWebhook = async (req, res) => {
         subscriptionUpdate = {
           'subscription.isActive': false
         };
+        break;
+
+      case 'TRANSFER':
+        console.log('RevenueCat transfer processed for owner mapping only', {
+          ownerEmail: owner.email,
+          transferredTo: event.transferred_to,
+          transferredFrom: event.transferred_from
+        });
         break;
 
       default:

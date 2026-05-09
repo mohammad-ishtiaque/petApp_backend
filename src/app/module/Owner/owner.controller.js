@@ -65,6 +65,31 @@ exports.updateOwnerProfile = async (req, res, next) => {
   }
 };
 
+exports.setRevenueCatIdentity = asyncHandler(async (req, res, next) => {
+  const ownerId = req.owner.id || req.owner._id;
+  const { appUserId } = req.body;
+
+  if (!appUserId || typeof appUserId !== 'string' || !appUserId.trim()) {
+    throw new ApiError('appUserId is required', 400);
+  }
+
+  const trimmedAppUserId = appUserId.trim();
+  const owner = await Owner.findById(ownerId).select('-password');
+
+  if (!owner) {
+    throw new ApiError('Owner not found', 404);
+  }
+
+  owner.revenueCatUserId = trimmedAppUserId;
+  await owner.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'RevenueCat identity saved successfully',
+    revenueCatUserId: owner.revenueCatUserId
+  });
+});
+
 exports.deleteOwner = asyncHandler(async (req, res, next) => {
   const id = req.owner.id || req.owner._id;
   const owner = await Owner.findByIdAndDelete(id);
