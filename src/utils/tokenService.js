@@ -11,7 +11,7 @@ class TokenService {
    * @param {string} expiresIn - Token expiration time (default: '1d')
    * @returns {string} - JWT token
    */
-  generateAccessToken(payload, expiresIn = '1d') {
+  generateAccessToken(payload, expiresIn = '7d') {
     if (!process.env.JWT_SECRET) {
       throw new ApiError('JWT_SECRET is not defined in environment variables', 500);
     }
@@ -29,7 +29,7 @@ class TokenService {
       throw new ApiError('JWT_REFRESH_SECRET is not defined in environment variables', 500);
     }
     
-    return jwt.sign(payload, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
+    return jwt.sign(payload, process.env.JWT_REFRESH_SECRET, { expiresIn: '15d' });
   }
 
   /**
