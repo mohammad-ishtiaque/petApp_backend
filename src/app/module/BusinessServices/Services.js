@@ -32,8 +32,24 @@ const serviceSchema = new mongoose.Schema({
     },
 
     offDay: {
-        type: String,
-        required: true
+        type: [String],
+        default: [],
+        set: function (val) {
+            if (!val) return [];
+            if (Array.isArray(val)) {
+                return val.map(d => String(d).trim()).filter(Boolean);
+            }
+            if (typeof val === 'string') {
+                if (val.trim().startsWith('[')) {
+                    try {
+                        const parsed = JSON.parse(val);
+                        if (Array.isArray(parsed)) return parsed.map(d => String(d).trim()).filter(Boolean);
+                    } catch (e) {}
+                }
+                return val.split(',').map(d => d.trim()).filter(Boolean);
+            }
+            return [];
+        }
     },
 
     websiteLink: {
@@ -74,8 +90,15 @@ serviceSchema.virtual('isOpenNow').get(function () {
     const today = now.format('dddd'); // e.g. "Monday"
   
     // If today is off day → closed
-    if (this.offDay && this.offDay.toLowerCase() === today.toLowerCase()) {
-      return false;
+    let offDays = [];
+    if (Array.isArray(this.offDay)) {
+        offDays = this.offDay.map(d => String(d).trim().toLowerCase());
+    } else if (typeof this.offDay === 'string') {
+        offDays = this.offDay.split(',').map(d => d.trim().toLowerCase());
+    }
+
+    if (offDays.includes(today.toLowerCase())) {
+        return false;
     }
   
     // Convert opening & closing times into today's date
@@ -84,11 +107,11 @@ serviceSchema.virtual('isOpenNow').get(function () {
   
     // Handle overnight businesses (e.g., 20:00 - 02:00)
     if (closing.isBefore(opening)) {
-      return now.isAfter(opening) || now.isBefore(closing);
+        return now.isAfter(opening) || now.isBefore(closing);
     }
   
     return now.isBetween(opening, closing);
-  });
+});
 
 const Service = mongoose.model('Service', serviceSchema);
 

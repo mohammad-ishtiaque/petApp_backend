@@ -9,6 +9,26 @@ const checkIfOpenNow = require('../../../utils/checkOpen');
 const Owner = require('../Owner/Owner');
 const { createAdminNotification } = require('../Notification/notification.controller');
 
+const parseArrayField = (val) => {
+    if (!val) return [];
+    if (Array.isArray(val)) {
+        return val.map(item => String(item).trim()).filter(Boolean);
+    }
+    if (typeof val === 'string') {
+        const trimmed = val.trim();
+        if (trimmed.startsWith('[')) {
+            try {
+                const parsed = JSON.parse(trimmed);
+                if (Array.isArray(parsed)) {
+                    return parsed.map(item => String(item).trim()).filter(Boolean);
+                }
+            } catch (e) {}
+        }
+        return trimmed.split(',').map(item => item.trim()).filter(Boolean);
+    }
+    return [];
+};
+
 // Find nearby services by type within a radius (default 10km)
 exports.getNearbyServices = asyncHandler(async (req, res, next) => {
     try {
@@ -126,13 +146,9 @@ exports.createService = asyncHandler(async (req, res, next) => {
             longitude: longitude?.trim(),
             openingTime: openingTime?.trim(),
             closingTime: closingTime?.trim(),
-            offDay: offDay?.trim(),
+            offDay: parseArrayField(offDay),
             websiteLink: websiteLink?.trim(),
-            providings: Array.isArray(providings)
-                ? providings.map(p => p.trim())
-                : providings
-                    ? [providings.trim()]
-                    : [],
+            providings: parseArrayField(providings),
             phone,
             servicesImages,
             businessId,
@@ -236,9 +252,13 @@ exports.updateService = async (req, res, next) => {
         service.location = location || service.location;
         service.openingTime = openingTime || service.openingTime;
         service.closingTime = closingTime || service.closingTime;
-        service.offDay = offDay || service.offDay;
+        if (offDay !== undefined) {
+            service.offDay = parseArrayField(offDay);
+        }
         service.websiteLink = websiteLink || service.websiteLink;
-        service.providings = providings || service.providings;
+        if (providings !== undefined) {
+            service.providings = parseArrayField(providings);
+        }
         service.latitude = latitude || service.latitude;
         service.longitude = longitude || service.longitude;
         service.phone = phone || service.phone;

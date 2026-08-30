@@ -36,10 +36,17 @@ exports.createBooking = asyncHandler(async (req, res) => {
   const service = await Service.findById(serviceId);
   if (!service) throw new ApiError("Service not found", 404);
 
-  if (day === service.offDay) {
-    return res.status(404).json({
+  let offDays = [];
+  if (Array.isArray(service.offDay)) {
+    offDays = service.offDay.map(d => String(d).trim().toLowerCase());
+  } else if (typeof service.offDay === 'string') {
+    offDays = service.offDay.split(',').map(d => d.trim().toLowerCase());
+  }
+
+  if (offDays.includes(day.toLowerCase())) {
+    return res.status(400).json({
       success: false,
-      message: `Booking is not allowed on ${day}`,
+      message: `Booking is not allowed on ${day} as it is an off day for this service`,
     });
   }
   // console.log("service", service)

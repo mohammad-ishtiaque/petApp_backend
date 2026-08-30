@@ -5,7 +5,14 @@ function checkIfOpenNow(service) {
   const today = now.format("dddd"); // e.g. "Monday"
 
   // Off day check
-  if (service.offDay && service.offDay.toLowerCase() === today.toLowerCase()) {
+  let offDays = [];
+  if (Array.isArray(service.offDay)) {
+    offDays = service.offDay.map(d => String(d).trim().toLowerCase());
+  } else if (typeof service.offDay === 'string') {
+    offDays = service.offDay.split(',').map(d => d.trim().toLowerCase());
+  }
+
+  if (offDays.includes(today.toLowerCase())) {
     return false;
   }
 
