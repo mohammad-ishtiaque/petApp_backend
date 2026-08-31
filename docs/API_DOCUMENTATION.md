@@ -308,6 +308,22 @@ All thrown or unhandled errors are passed to the global `errorHandler` middlewar
 
 ---
 
+### 3.9 Logout
+- **Route**: `POST /api/auth/logout`
+- **Auth Level**: Public / Authenticated
+- **Headers**: `Content-Type: application/json`
+- **Request Payload**: None
+- **Responses**:
+  - `200 OK`:
+    ```json
+    {
+      "success": true,
+      "message": "Logged out successfully"
+    }
+    ```
+
+---
+
 ## 4. Pet Management API (`/api/pet`)
 
 ### 4.1 Create Pet

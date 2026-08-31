@@ -328,3 +328,18 @@ exports.resendVerificationCode = async (req, res, next) => {
   }
 };
 
+// LOGOUT
+exports.logout = async (req, res, next) => {
+  try {
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
+    return res.status(200).json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+
