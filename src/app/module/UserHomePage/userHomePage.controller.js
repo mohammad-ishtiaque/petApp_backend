@@ -9,6 +9,7 @@ const Advertisement = require('../Advertisement/Advertisement');
 const asyncHandler = require('../../../utils/asyncHandler');
 const { ApiError } = require('../../../errors/errorHandler');
 const checkIfOpenNow = require('../../../utils/checkOpen');
+const { combineDateAndTime } = require('../../../utils/checkDate');
 const QueryBuilder = require('../../../builder/queryBuilder');
 
 // exports.getServicesByType = asyncHandler(async (req, res) => {
@@ -273,30 +274,52 @@ exports.getAllUserHomePageData = asyncHandler(async (req, res) => {
         : null;
 
     // Get upcoming appointments for the user
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Set to start of day
+    const now = new Date();
+    const startOfYesterday = new Date(now);
+    startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+    startOfYesterday.setHours(0, 0, 0, 0);
 
-    const upcomingAppointments = await Booking.find({
+    const candidateAppointments = await Booking.find({
         userId,
+        bookingStatus: { $in: ['PENDING', 'APPROVED'] },
         $or: [
-            {
-                checkInDate: { $gte: today }, // For hotel bookings
-                bookingStatus: { $in: ['PENDING', 'APPROVED'] }
-            },
-            {
-                bookingDate: { $gte: today }, // For regular appointments
-                bookingStatus: { $in: ['PENDING', 'APPROVED'] }
-            }
+            { checkInDate: { $gte: startOfYesterday } },
+            { bookingDate: { $gte: startOfYesterday } }
         ]
     })
-        .sort({
-            checkInDate: 1,  // Sort by check-in date first (for hotels)
-            bookingDate: 1,  // Then by booking date
-            bookingTime: 1   // Then by booking time
-        })
-        .limit(5) // Limit to 5 upcoming appointments
         .populate('serviceId', 'serviceName serviceType shopLogo')
         .lean();
+
+    // Filter out appointments whose time has already passed
+    const validUpcomingAppointments = candidateAppointments.filter(appointment => {
+        const isHotelBooking = appointment.serviceId?.serviceType === 'HOTEL';
+        const date = isHotelBooking
+            ? (appointment.checkOutDate || appointment.checkInDate)
+            : appointment.bookingDate;
+        const time = isHotelBooking
+            ? (appointment.checkOutTime || appointment.checkInTime)
+            : appointment.bookingTime;
+
+        const appointmentDateTime = combineDateAndTime(date, time);
+        return appointmentDateTime && appointmentDateTime >= now;
+    });
+
+    // Sort chronologically ascending by appointment date and time
+    validUpcomingAppointments.sort((a, b) => {
+        const isHotelA = a.serviceId?.serviceType === 'HOTEL';
+        const dateA = isHotelA ? (a.checkOutDate || a.checkInDate) : a.bookingDate;
+        const timeA = isHotelA ? (a.checkOutTime || a.checkInTime) : a.bookingTime;
+        const dtA = combineDateAndTime(dateA, timeA) || new Date(0);
+
+        const isHotelB = b.serviceId?.serviceType === 'HOTEL';
+        const dateB = isHotelB ? (b.checkOutDate || b.checkInDate) : b.bookingDate;
+        const timeB = isHotelB ? (b.checkOutTime || b.checkInTime) : b.bookingTime;
+        const dtB = combineDateAndTime(dateB, timeB) || new Date(0);
+
+        return dtA - dtB;
+    });
+
+    const upcomingAppointments = validUpcomingAppointments.slice(0, 5);
 
     // Transform appointments data
     const transformedAppointments = upcomingAppointments.map(appointment => {

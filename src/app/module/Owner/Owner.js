@@ -26,6 +26,10 @@ const ownerSchema = new mongoose.Schema({
   profilePic: {
     type: String
   },
+  oneSignalPlayerId: {
+    type: String,
+    default: null
+  },
   isVerified: {
     type: Boolean,
     default: false

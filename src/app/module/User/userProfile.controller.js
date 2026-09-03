@@ -174,3 +174,29 @@ exports.getMyAppointment = async(req, res, next) => {
     }
 }
 
+exports.saveDeviceToken = async (req, res, next) => {
+    try {
+        const userId = req?.user?.id || req?.user?._id;
+        const { oneSignalPlayerId } = req.body;
+
+        if (!oneSignalPlayerId) {
+            throw new ApiError('oneSignalPlayerId is required', 400);
+        }
+
+        let account = await User.findById(userId) || await Owner.findById(userId);
+        if (!account) throw new ApiError('Account not found', 404);
+
+        account.oneSignalPlayerId = oneSignalPlayerId;
+        await account.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Device token saved successfully',
+            oneSignalPlayerId: account.oneSignalPlayerId
+        });
+    } catch (err) {
+        return next(err);
+    }
+};
+
+

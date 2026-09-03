@@ -3,6 +3,7 @@ const User = require("../app/module/User/User");
 const Conversation = require("../app/module/Conversation/conversation.model");
 const Message = require("../app/module/Conversation/message.model");
 const Owner = require("../app/module/Owner/Owner");
+const { sendPushNotification } = require("../services/onesignal.service");
 
 const onlineUsers = new Map();
 let waitingUsers = [];
@@ -325,6 +326,26 @@ socket.on("cancel-waiting", (data) => {
       // Use emitMessage for emitting the conversation updates and new message
       await emitMessage(receiverId, conversationUpdateReceiver, `${ENUM_SOCKET_EVENT.CONVERSATION_UPDATE}/${receiverId}`, io);
       await emitMessage(senderId, conversationUpdateSender, `${ENUM_SOCKET_EVENT.CONVERSATION_UPDATE}/${senderId}`, io);
+
+      // Trigger OneSignal Push Notification for the receiver
+      const notificationText = text 
+        ? text 
+        : (images && images.length > 0) 
+        ? "📷 Sent an image" 
+        : video 
+        ? "🎥 Sent a video" 
+        : "New message";
+
+      sendPushNotification({
+        userIds: [receiverId],
+        title: sender.name || "New Message",
+        message: notificationText,
+        data: {
+          conversationId: conversation._id.toString(),
+          senderId: senderId.toString(),
+          type: "MESSAGE"
+        }
+      }).catch(err => console.error("Error sending message push notification:", err));
   
     } catch (err) {
       console.error("Socket error:", err);

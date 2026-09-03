@@ -46,6 +46,10 @@ const userSchema = new mongoose.Schema({
   profilePic: {
     type: String
   },
+  oneSignalPlayerId: {
+    type: String,
+    default: null
+  },
   verificationCode: {
     code: String,
     expiresAt: Date

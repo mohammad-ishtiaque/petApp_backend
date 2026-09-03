@@ -1,4 +1,5 @@
 const Notification = require("../app/module/Notification/Notification");
+const { sendPushNotification } = require("./onesignal.service");
 
 class NotificationService {
   constructor(io, options = {}) {
@@ -29,6 +30,18 @@ class NotificationService {
         const roomId = `${recipient.role}:${recipient.id}`;
         this.io.to(roomId).emit('new_notification', notification);
       }
+
+      // Also trigger OneSignal push notification
+      sendPushNotification({
+        userIds: [recipient.id],
+        title: notificationData.title || "New Notification",
+        message: notificationData.message || "You have a new update",
+        data: {
+          type: notificationData.type || "SYSTEM",
+          notificationId: notification._id.toString(),
+          ...(notificationData.data || {})
+        }
+      }).catch(err => console.error("Error sending push notification from service:", err));
       
       return notification;
     } catch (error) {
