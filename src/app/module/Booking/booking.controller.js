@@ -7,7 +7,7 @@ const Owner = require("../Owner/Owner");
 const Pet = require("../Pet/Pet");
 const User = require("../User/User");
 const QueryBuilder = require("../../../builder/queryBuilder");
-const { getWeekdayName } = require("../../../utils/checkDate");
+const { getWeekdayName, combineDateAndTime } = require("../../../utils/checkDate");
 const postNotification = require("../../../utils/postNotification");
 
 exports.createBooking = asyncHandler(async (req, res) => {
@@ -112,26 +112,96 @@ exports.createBooking = asyncHandler(async (req, res) => {
 });
 
 exports.getBooking = asyncHandler(async (req, res) => {
-  const query = { userId: req.user.id || req.user._id };
+  const userId = req.user.id || req.user._id;
   const queryObj = { ...req.query };
+  const rawType = String(req.query.type || req.query.filter || req.query.isUpcoming || '').trim().toLowerCase();
+
+  // Remove non-schema fields so QueryBuilder does not search type/filter as DB fields
+  delete queryObj.type;
+  delete queryObj.filter;
+  delete queryObj.isUpcoming;
+
+  const isUpcomingFilter = ['upcoming', 'upcomming', 'up-coming'].includes(rawType);
+  const isPastFilter = ['past', 'completed'].includes(rawType);
+
+  if (isUpcomingFilter || isPastFilter) {
+    delete queryObj.status;
+    delete queryObj.bookingStatus;
+  }
+
+  const query = { userId };
 
   // Create query builder instance
   const bookingQuery = new QueryBuilder(Booking.find(query), queryObj)
-    .search(['bookingStatus', 'notes']) // Add searchable fields if needed
+    .search(['bookingStatus', 'notes'])
     .filter()
     .sort()
-    .paginate()
     .fields();
 
-  // Execute query and get pagination info
-  const bookings = await bookingQuery.modelQuery.populate(
+  // Execute query with exact original populate
+  let bookings = await bookingQuery.modelQuery.populate(
     "serviceId",
     "serviceType isOpenNow businessId shopLogo location phone servicesImages websiteLink"
   );
 
-  const { page, limit, total, totalPage } = await bookingQuery.countTotal();
+  const now = new Date();
 
-  if (!bookings || bookings.length === 0) {
+  if (isUpcomingFilter) {
+    bookings = (bookings || []).filter(b => {
+      const isHotel = b.serviceType === 'HOTEL' || b.serviceId?.serviceType === 'HOTEL';
+      const date = isHotel ? (b.checkOutDate || b.checkInDate) : b.bookingDate;
+      const time = isHotel ? (b.checkOutTime || b.checkInTime) : b.bookingTime;
+      const dt = combineDateAndTime(date, time);
+      return dt && dt >= now && ['PENDING', 'APPROVED'].includes(b.bookingStatus);
+    });
+
+    bookings.sort((a, b) => {
+      const isHotelA = a.serviceType === 'HOTEL' || a.serviceId?.serviceType === 'HOTEL';
+      const dateA = isHotelA ? (a.checkOutDate || a.checkInDate) : a.bookingDate;
+      const timeA = isHotelA ? (a.checkOutTime || a.checkInTime) : a.bookingTime;
+      const dtA = combineDateAndTime(dateA, timeA) || new Date(0);
+
+      const isHotelB = b.serviceType === 'HOTEL' || b.serviceId?.serviceType === 'HOTEL';
+      const dateB = isHotelB ? (b.checkOutDate || b.checkInDate) : b.bookingDate;
+      const timeB = isHotelB ? (b.checkOutTime || b.checkInTime) : b.bookingTime;
+      const dtB = combineDateAndTime(dateB, timeB) || new Date(0);
+
+      return dtA - dtB;
+    });
+  } else if (isPastFilter) {
+    bookings = (bookings || []).filter(b => {
+      const isHotel = b.serviceType === 'HOTEL' || b.serviceId?.serviceType === 'HOTEL';
+      const date = isHotel ? (b.checkOutDate || b.checkInDate) : b.bookingDate;
+      const time = isHotel ? (b.checkOutTime || b.checkInTime) : b.bookingTime;
+      const dt = combineDateAndTime(date, time);
+      return (dt && dt < now) || ['COMPLETED', 'CANCELLED', 'REJECTED'].includes(b.bookingStatus);
+    });
+
+    bookings.sort((a, b) => {
+      const isHotelA = a.serviceType === 'HOTEL' || a.serviceId?.serviceType === 'HOTEL';
+      const dateA = isHotelA ? (a.checkOutDate || a.checkInDate) : a.bookingDate;
+      const timeA = isHotelA ? (a.checkOutTime || a.checkInTime) : a.bookingTime;
+      const dtA = combineDateAndTime(dateA, timeA) || new Date(0);
+
+      const isHotelB = b.serviceType === 'HOTEL' || b.serviceId?.serviceType === 'HOTEL';
+      const dateB = isHotelB ? (b.checkOutDate || b.checkInDate) : b.bookingDate;
+      const timeB = isHotelB ? (b.checkOutTime || b.checkInTime) : b.bookingTime;
+      const dtB = combineDateAndTime(dateB, timeB) || new Date(0);
+
+      return dtB - dtA;
+    });
+  }
+
+  // Handle pagination
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.max(1, Number(req.query.limit) || 10);
+  const total = bookings.length;
+  const totalPage = Math.ceil(total / limit);
+  const skip = (page - 1) * limit;
+
+  const paginatedBookings = bookings.slice(skip, skip + limit);
+
+  if (!paginatedBookings || paginatedBookings.length === 0) {
     return res.status(200).json({
       success: true,
       message: "No bookings found",
@@ -148,7 +218,7 @@ exports.getBooking = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: "Bookings retrieved successfully",
-    bookings,
+    bookings: paginatedBookings,
     pagination: {
       total,
       totalPage,
